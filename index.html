@@ -4103,44 +4103,225 @@
             window.app = new CricPulseApp();
         };
     </script>
+
     <!-- CRICPULSE PRO 10/10 UPGRADE PART 1: BROADCAST NAV BAR & HAPTICS -->
-<script>
-    // 1. Unified 4-Tab Broadcast Navigation Bar & Live Cloud Pulse
-    // Inject this navigation strip right below the top header or inside mainViewContainer
-    function renderBroadcastNavBar() {
-        const match = window.app.getActiveMatch();
-        const activeView = window.app.state.activeView;
-        if (!match) return '';
+    <script>
+        function renderBroadcastNavBar() {
+            if (!window.app) return '';
+            const match = window.app.getActiveMatch();
+            const activeView = window.app.state.activeView;
+            if (!match) return '';
 
-        return `
-            <div class="glass-card rounded-2xl p-1.5 flex items-center justify-between gap-1 border border-slate-800 shadow-lg text-xs">
-                <div class="flex items-center gap-1 overflow-x-auto">
-                    <button onclick="app.navigate('match')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                        <i class="fa-solid fa-satellite-dish"></i> Live Match
-                    </button>
-                    <button onclick="app.navigate('scorecard')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                        <i class="fa-solid fa-table-list"></i> Scorecard
-                    </button>
-                    <button onclick="app.navigate('analytics')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                        <i class="fa-solid fa-chart-line"></i> Analytics &amp; MVP
-                    </button>
-                    <button onclick="app.navigate('hub')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                        <i class="fa-solid fa-trophy"></i> Series Hub
-                    </button>
+            return `
+                <div class="glass-card rounded-2xl p-1.5 flex items-center justify-between gap-1 border border-slate-800 shadow-lg text-xs">
+                    <div class="flex items-center gap-1 overflow-x-auto">
+                        <button onclick="app.navigate('match')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                            <i class="fa-solid fa-satellite-dish"></i> Live Match
+                        </button>
+                        <button onclick="app.navigate('scorecard')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                            <i class="fa-solid fa-table-list"></i> Scorecard
+                        </button>
+                        <button onclick="app.navigate('analytics')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                            <i class="fa-solid fa-chart-line"></i> Analytics &amp; MVP
+                        </button>
+                        <button onclick="app.navigate('hub')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                            <i class="fa-solid fa-trophy"></i> Series Hub
+                        </button>
+                    </div>
+                    <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-emerald-400 shrink-0">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced
+                    </div>
                 </div>
-                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-emerald-400 shrink-0">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced
-                </div>
-            </div>
-        `;
-    }
-
-    // 2. Tactile Mobile Haptic Feedback on Scorer Keypad Taps
-    function triggerHapticFeedback(pattern = 15) {
-        if ('vibrate' in navigator) {
-            try { navigator.vibrate(pattern); } catch (e) {}
+            `;
         }
-    }
-</script>
+
+        function triggerHapticFeedback(pattern = 15) {
+            if ('vibrate' in navigator) {
+                try { navigator.vibrate(pattern); } catch (e) {}
+            }
+        }
+    </script>
+
+    <!-- CRICPULSE PRO 10/10 UPGRADE PART 2: SME EDGE-CASE ENGINE, SPLIT PARTNERSHIPS & MILESTONES -->
+    <script>
+    (function() {
+        function attachCricPulse10OutOf10Engine() {
+            if (!window.app) {
+                setTimeout(attachCricPulse10OutOf10Engine, 60);
+                return;
+            }
+            const app = window.app;
+            if (app._upgradedTo10OutOf10) return;
+            app._upgradedTo10OutOf10 = true;
+
+            const origRenderAll = app.renderAll.bind(app);
+            app.renderAll = function() {
+                origRenderAll();
+                const container = document.getElementById('mainViewContainer');
+                if (container && typeof renderBroadcastNavBar === 'function') {
+                    const navHtml = renderBroadcastNavBar();
+                    if (navHtml && !document.getElementById('cricpulseBroadcastNavBar')) {
+                        const navWrap = document.createElement('div');
+                        navWrap.id = 'cricpulseBroadcastNavBar';
+                        navWrap.className = 'mb-2';
+                        navWrap.innerHTML = navHtml;
+                        container.prepend(navWrap);
+                    }
+                }
+                const extraRow = document.getElementById('extraBtn-LB')?.parentElement;
+                if (extraRow && !document.getElementById('extraBtn-NBB')) {
+                    extraRow.classList.remove('grid-cols-4');
+                    extraRow.classList.add('grid-cols-5');
+                    const nbbBtn = document.createElement('button');
+                    nbbBtn.id = 'extraBtn-NBB';
+                    nbbBtn.onclick = () => app.toggleExtraMode('NBB');
+                    nbbBtn.className = 'tap-btn py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-black text-purple-300';
+                    nbbBtn.textContent = 'NB+Bye';
+                    extraRow.appendChild(nbbBtn);
+                }
+                app.applySpectatorLockdownUI();
+            };
+
+            app.updateExtraButtonsUI = function() {
+                ['WD', 'NB', 'B', 'LB', 'NBB'].forEach(m => {
+                    const btn = document.getElementById(`extraBtn-${m}`);
+                    if (!btn) return;
+                    if (this.activeExtraMode === m) {
+                        btn.classList.add('ring-2', 'ring-emerald-400', 'bg-emerald-600/40', 'text-white');
+                    } else {
+                        btn.classList.remove('ring-2', 'ring-emerald-400', 'bg-emerald-600/40', 'text-white');
+                    }
+                });
+            };
+
+            const origExecuteDelivery = app.executeDelivery.bind(app);
+            app.executeDelivery = function(runs, wagonZone) {
+                if (typeof triggerHapticFeedback === 'function') {
+                    triggerHapticFeedback(runs >= 4 ? [20, 40, 25] : 15);
+                }
+
+                const match = this.getActiveMatch();
+                const inn = this.getActiveInnings();
+                if (!match || !inn || match.status === 'completed') return;
+
+                const prevStriker = inn.striker;
+                const prevRuns = prevStriker && inn.batStats[prevStriker] ? inn.batStats[prevStriker].runs : 0;
+                const extra = this.activeExtraMode;
+
+                if (!inn.partnership.b1Name) {
+                    inn.partnership.b1Name = inn.striker || 'Batter 1';
+                    inn.partnership.b2Name = inn.nonStriker || 'Batter 2';
+                    inn.partnership.b1Runs = 0; inn.partnership.b1Balls = 0;
+                    inn.partnership.b2Runs = 0; inn.partnership.b2Balls = 0;
+                    inn.partnership.extras = 0;
+                }
+
+                if (extra === 'NBB') {
+                    this.pushUndoSnapshot(match);
+                    this.activeExtraMode = null;
+                    this.updateExtraButtonsUI();
+
+                    if (inn.legalBalls > 0 && inn.legalBalls % 6 === 0 && inn.thisOver.length >= 6) {
+                        inn.thisOver = [];
+                    }
+                    const totalRunsOnBall = 1 + runs;
+                    const bowlerStats = inn.bowlStats[inn.currentBowler];
+                    const strikerStats = inn.batStats[inn.striker];
+
+                    inn.runs += totalRunsOnBall;
+                    inn.partnership.runs += totalRunsOnBall;
+                    inn.partnership.extras = (inn.partnership.extras || 0) + totalRunsOnBall;
+                    inn.extras.total += totalRunsOnBall;
+                    inn.extras.nb += 1;
+                    inn.extras.b += runs;
+
+                    if (match.rules.freeHit !== false) inn.isFreeHit = true;
+                    if (strikerStats) {
+                        strikerStats.balls += 1;
+                        if (runs === 0) strikerStats.dots = (strikerStats.dots || 0) + 1;
+                    }
+                    if (inn.striker === inn.partnership.b1Name) inn.partnership.b1Balls += 1;
+                    else inn.partnership.b2Balls += 1;
+
+                    if (bowlerStats) {
+                        bowlerStats.runs += 1;
+                        bowlerStats.currentOverRuns += 1;
+                        bowlerStats.extrasConceded = (bowlerStats.extrasConceded || 0) + 1;
+                    }
+
+                    if (runs % 2 === 1 && inn.nonStriker) {
+                        const tmp = inn.striker; inn.striker = inn.nonStriker; inn.nonStriker = tmp;
+                    }
+
+                    const overStamp = this.formatOvers(inn.legalBalls);
+                    const chipLabel = `${runs}b+nb`;
+                    inn.thisOver.push({ label: chipLabel, color: 'amber' });
+                    inn.ballLog.unshift({
+                        over: overStamp, striker: prevStriker, bowler: inn.currentBowler, label: chipLabel,
+                        runs: totalRunsOnBall, isBoundary: false, isWicket: false,
+                        desc: `${overStamp} — ${inn.currentBowler} to ${prevStriker}: [NB + ${runs} Byes] ${totalRunsOnBall} runs`
+                    });
+
+                    this.checkOverAndInningsCompletion(match, inn, false);
+                    this.saveState();
+                    this.renderAll();
+                    return;
+                }
+
+                const isBatterRun = !extra || extra === 'NB';
+                const extraAdder = (extra === 'WD' ? 1 + runs : (extra === 'NB' ? 1 : (extra === 'B' || extra === 'LB' ? runs : 0)));
+                if (prevStriker === inn.partnership.b1Name) {
+                    if (isBatterRun) inn.partnership.b1Runs = (inn.partnership.b1Runs || 0) + runs;
+                    if (extra !== 'WD') inn.partnership.b1Balls = (inn.partnership.b1Balls || 0) + 1;
+                } else {
+                    inn.partnership.b2Name = prevStriker || inn.partnership.b2Name;
+                    if (isBatterRun) inn.partnership.b2Runs = (inn.partnership.b2Runs || 0) + runs;
+                    if (extra !== 'WD') inn.partnership.b2Balls = (inn.partnership.b2Balls || 0) + 1;
+                }
+                inn.partnership.extras = (inn.partnership.extras || 0) + extraAdder;
+
+                origExecuteDelivery(runs, wagonZone);
+
+                const newRuns = prevStriker && inn.batStats[prevStriker] ? inn.batStats[prevStriker].runs : 0;
+                const newBalls = prevStriker && inn.batStats[prevStriker] ? inn.batStats[prevStriker].balls : 0;
+                if (prevRuns < 50 && newRuns >= 50 && newRuns < 100) {
+                    if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([40, 60, 80]);
+                    this.showToast(`⭐ FIFTY UP! ${prevStriker} reaches ${newRuns}* (${newBalls} balls)!`, 'amber');
+                } else if (prevRuns < 100 && newRuns >= 100) {
+                    if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([60, 50, 80, 50, 100]);
+                    this.showToast(`💯 CENTURY! Sensational hundred by ${prevStriker} (${newRuns}* off ${newBalls}b)!`, 'amber');
+                }
+            };
+
+            const origConfirmWicket = app.confirmWicket.bind(app);
+            app.confirmWicket = function() {
+                const inn = this.getActiveInnings();
+                const snapSplit = inn && inn.partnership ? { ...inn.partnership } : null;
+                if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([50, 40, 70]);
+                origConfirmWicket();
+                if (inn && snapSplit && inn.partnershipsList && inn.partnershipsList.length > 0) {
+                    const lastStand = inn.partnershipsList[inn.partnershipsList.length - 1];
+                    lastStand.b1Name = snapSplit.b1Name || lastStand.batter1;
+                    lastStand.b2Name = snapSplit.b2Name || lastStand.batter2;
+                    lastStand.b1Runs = snapSplit.b1Runs || 0;
+                    lastStand.b1Balls = snapSplit.b1Balls || 0;
+                    lastStand.b2Runs = snapSplit.b2Runs || 0;
+                    lastStand.b2Balls = snapSplit.b2Balls || 0;
+                    lastStand.extras = snapSplit.extras || 0;
+                    this.saveState();
+                    this.renderAll();
+                }
+            };
+
+            app.renderAll();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachCricPulse10OutOf10Engine);
+        } else {
+            attachCricPulse10OutOf10Engine();
+        }
+    })();
+    </script>
 </body>
 </html>
