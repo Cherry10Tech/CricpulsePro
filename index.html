@@ -4103,5 +4103,44 @@
             window.app = new CricPulseApp();
         };
     </script>
+    <!-- CRICPULSE PRO 10/10 UPGRADE PART 1: BROADCAST NAV BAR & HAPTICS -->
+<script>
+    // 1. Unified 4-Tab Broadcast Navigation Bar & Live Cloud Pulse
+    // Inject this navigation strip right below the top header or inside mainViewContainer
+    function renderBroadcastNavBar() {
+        const match = window.app.getActiveMatch();
+        const activeView = window.app.state.activeView;
+        if (!match) return '';
+
+        return `
+            <div class="glass-card rounded-2xl p-1.5 flex items-center justify-between gap-1 border border-slate-800 shadow-lg text-xs">
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    <button onclick="app.navigate('match')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-satellite-dish"></i> Live Match
+                    </button>
+                    <button onclick="app.navigate('scorecard')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-table-list"></i> Scorecard
+                    </button>
+                    <button onclick="app.navigate('analytics')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-chart-line"></i> Analytics &amp; MVP
+                    </button>
+                    <button onclick="app.navigate('hub')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-trophy"></i> Series Hub
+                    </button>
+                </div>
+                <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-emerald-400 shrink-0">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced
+                </div>
+            </div>
+        `;
+    }
+
+    // 2. Tactile Mobile Haptic Feedback on Scorer Keypad Taps
+    function triggerHapticFeedback(pattern = 15) {
+        if ('vibrate' in navigator) {
+            try { navigator.vibrate(pattern); } catch (e) {}
+        }
+    }
+</script>
 </body>
 </html>
