@@ -664,14 +664,7 @@
                         </label>
                     </div>
                 </div>
-            </div>
-            <div class="flex justify-end pt-2">
-                <button onclick="app.closeModal('modal-share')" class="px-5 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- RETIRE BATTER MODAL -->
+            <!-- RETIRE BATTER MODAL -->
     <div id="modal-retire" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
         <div class="glass-card rounded-3xl max-w-sm w-full p-5 border border-amber-500/40 space-y-4">
             <div class="flex items-center justify-between">
@@ -684,6 +677,13 @@
                 <div>
                     <label class="block text-slate-300 font-bold mb-1">Batter to Retire</label>
                     <select id="retireBatterSelect" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold"></select>
+                </div>
+                <div>
+                    <label class="block text-amber-400 font-bold mb-1">Retirement Type</label>
+                    <select id="retireTypeSelect" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold">
+                        <option value="HURT">Retired Hurt (Not Out — Can Return Later)</option>
+                        <option value="OUT">Retired Out (Counts as Wicket — Cannot Return)</option>
+                    </select>
                 </div>
                 <div>
                     <label class="block text-emerald-400 font-bold mb-1">Replacement Batter</label>
@@ -2428,11 +2428,20 @@
                 if (!match || !inn) return;
                 const retBatter = document.getElementById('retireBatterSelect').value;
                 const repBatter = document.getElementById('retireReplacementSelect').value;
+                const retType = document.getElementById('retireTypeSelect')?.value || 'HURT';
                 if (!retBatter || !repBatter) return;
 
                 this.pushUndoSnapshot(match);
-                inn.batStats[retBatter].status = 'retired';
-                inn.batStats[retBatter].outDesc = 'retired hurt / out';
+                if (retType === 'OUT') {
+                    inn.batStats[retBatter].status = 'out';
+                    inn.batStats[retBatter].outDesc = 'retired out';
+                    inn.wickets += 1;
+                    const overStamp = this.formatOvers(inn.legalBalls);
+                    inn.fow.push({ wicketNum: inn.wickets, runs: inn.runs, overs: overStamp, batter: retBatter });
+                } else {
+                    inn.batStats[retBatter].status = 'retired';
+                    inn.batStats[retBatter].outDesc = 'retired hurt';
+                }
                 inn.batStats[repBatter].status = 'batting';
                 inn.batStats[repBatter].outDesc = 'not out';
                 if (!inn.batStats[repBatter].battingOrder) {
@@ -2446,7 +2455,7 @@
                 this.closeModal('modal-retire');
                 this.saveState();
                 this.renderAll();
-                this.showToast(`🔄 ${retBatter} retired; ${repBatter} is now batting.`, 'amber');
+                this.showToast(`🔄 ${retBatter} (${retType === 'OUT' ? 'Retired Out' : 'Retired Hurt'}); ${repBatter} is now batting.`, 'amber');
             }
 
             openSuperOverModal() {
@@ -2791,8 +2800,10 @@
                 this.state.matches.forEach(m => {
                     (m.innings || []).forEach(inn => {
                         Object.values(inn.batStats || {}).forEach(b => {
-                            if (!allBats[b.name]) allBats[b.name] = { name: b.name, runs: 0, matches: 0, '4s': 0, '6s': 0 };
+                            if (!allBats[b.name]) allBats[b.name] = { name: b.name, runs: 0, balls: 0, hs: 0, matches: 0, '4s': 0, '6s': 0 };
                             allBats[b.name].runs += (b.runs || 0);
+                            allBats[b.name].balls += (b.balls || 0);
+                            if ((b.runs || 0) > allBats[b.name].hs) allBats[b.name].hs = b.runs || 0;
                             allBats[b.name]['4s'] += (b.fours || 0);
                             allBats[b.name]['6s'] += (b.sixes || 0);
                             if (b.status !== 'dnb') allBats[b.name].matches += 1;
@@ -2805,28 +2816,34 @@
                         });
                     });
                 });
-                const topBatters = Object.values(allBats).filter(b => b.runs > 0).sort((a, b) => b.runs - a.runs).slice(0, 3);
+                const topBatters = Object.values(allBats).filter(b => b.runs > 0).sort((a, b) => b.runs - a.runs || a.balls - b.balls).slice(0, 3);
                 const topBowlers = Object.values(allBowls).filter(b => b.wickets > 0 || b.balls > 0).sort((a, b) => b.wickets - a.wickets || a.runs - b.runs).slice(0, 3);
 
                 return `
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                         <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
                             <span class="font-extrabold text-amber-400 block">🧢 Orange Cap (Top Run Scorers)</span>
-                            ${topBatters.length === 0 ? `<span class="text-slate-500">No runs scored yet</span>` : topBatters.map((b, i) => `
+                            ${topBatters.length === 0 ? `<span class="text-slate-500">No runs scored yet</span>` : topBatters.map((b, i) => {
+                                const sr = b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0';
+                                return `
                                 <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/60">
-                                    <span class="font-bold text-white">${i + 1}. ${b.name}</span>
-                                    <span class="score-font text-amber-300 font-extrabold">${b.runs} R</span>
+                                    <span class="font-bold text-white">${i + 1}. ${b.name} <span class="text-[10px] text-slate-400 font-normal">(HS ${b.hs})</span></span>
+                                    <span class="score-font text-amber-300 font-extrabold">${b.runs} R <span class="text-[10px] text-emerald-400 font-normal">SR ${sr}</span></span>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                         <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
                             <span class="font-extrabold text-purple-400 block">🧢 Purple Cap (Top Wicket Takers)</span>
-                            ${topBowlers.length === 0 ? `<span class="text-slate-500">No wickets taken yet</span>` : topBowlers.map((bw, i) => `
+                            ${topBowlers.length === 0 ? `<span class="text-slate-500">No wickets taken yet</span>` : topBowlers.map((bw, i) => {
+                                const econ = bw.balls > 0 ? ((bw.runs / bw.balls) * 6).toFixed(2) : '0.00';
+                                return `
                                 <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/60">
                                     <span class="font-bold text-white">${i + 1}. ${bw.name}</span>
-                                    <span class="score-font text-purple-300 font-extrabold">${bw.wickets} W (${bw.runs}R)</span>
+                                    <span class="score-font text-purple-300 font-extrabold">${bw.wickets} W (${bw.runs}R) <span class="text-[10px] text-sky-400 font-normal">Ec ${econ}</span></span>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
@@ -2927,11 +2944,14 @@
                 const totalBallsRem = Math.max(0, (maxOversThisInnings * 6) - inn.legalBalls);
                 const { probA: winProbA, probB: winProbB } = this.calculateWinProbability(match, inn);
 
-                // Super App Feature 1: Projected Score (1st Innings) vs Required Boundaries & Par Score (2nd Innings)
+                // Super App Feature 1: Dynamic Projected Score Tiers (1st Innings) vs Required Run Rate, Boundaries & Par Score (2nd Innings)
                 const crrNum = inn.legalBalls > 0 ? (inn.runs / (inn.legalBalls / 6)) : 0;
+                const rrrNum = (targetRuns && totalBallsRem > 0) ? ((runsNeeded / totalBallsRem) * 6) : 0;
                 const projAtCrr = inn.legalBalls > 0 ? Math.round(inn.runs + (crrNum * (totalBallsRem / 6))) : (maxOversThisInnings * 8);
-                const projAt8 = Math.round(inn.runs + (8 * (totalBallsRem / 6)));
-                const projAt10 = Math.round(inn.runs + (10 * (totalBallsRem / 6)));
+                const tier2Rpo = Math.max(8, Math.ceil(crrNum + 2));
+                const tier3Rpo = Math.max(10, Math.ceil(crrNum + 4));
+                const projAtTier2 = Math.round(inn.runs + (tier2Rpo * (totalBallsRem / 6)));
+                const projAtTier3 = Math.round(inn.runs + (tier3Rpo * (totalBallsRem / 6)));
                 const parScoreNow = targetRuns ? Math.round(((targetRuns - 1) / (maxOversThisInnings * 6)) * inn.legalBalls) : 0;
                 const parDiff = inn.runs - parScoreNow;
                 const reqBoundaries = runsNeeded ? Math.ceil(runsNeeded / 4) : 0;
@@ -3018,7 +3038,7 @@
                                     </div>
                                     <h1 class="score-font text-3xl sm:text-4xl font-black text-white leading-none">${inn.runs}/${inn.wickets}</h1>
                                     <span class="score-font text-sm sm:text-base text-slate-300 font-bold">(${this.formatOvers(inn.legalBalls)}/${maxOversThisInnings} ov)</span>
-                                    <span class="text-xs text-slate-400">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong></span>
+                                    <span class="text-xs text-slate-400">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong>${targetRuns ? ` • RRR: <strong class="text-amber-300 score-font">${rrrNum.toFixed(2)}</strong>` : ''}</span>
                                 </div>
                                 ${targetRuns ? `
                                     <div class="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs font-bold text-amber-300 score-font">
@@ -3026,7 +3046,7 @@
                                     </div>
                                 ` : `
                                     <div class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 score-font">
-                                        📈 Proj @CRR: <strong class="text-emerald-400">${projAtCrr}</strong>
+                                        📈 Proj @CRR: <strong class="text-emerald-400">${projAtCrr}</strong> • @${tier2Rpo}: <strong class="text-amber-300">${projAtTier2}</strong>
                                     </div>
                                 `}
                             </div>
@@ -3177,9 +3197,9 @@
                                         ${!targetRuns ? `
                                             <div class="flex flex-wrap items-center gap-1.5 text-slate-300">
                                                 <span class="font-black text-emerald-400"><i class="fa-solid fa-chart-line mr-1"></i>Projected:</span>
-                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@CRR: <strong class="text-white">${projAtCrr}</strong></span>
-                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@8 RPO: <strong class="text-slate-200">${projAt8}</strong></span>
-                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@10 RPO: <strong class="text-amber-300">${projAt10}</strong></span>
+                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@CRR (${crrNum.toFixed(1)}): <strong class="text-white">${projAtCrr}</strong></span>
+                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@${tier2Rpo} RPO: <strong class="text-slate-200">${projAtTier2}</strong></span>
+                                                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 score-font">@${tier3Rpo} RPO: <strong class="text-amber-300">${projAtTier3}</strong></span>
                                             </div>
                                         ` : `
                                             <div class="flex flex-wrap items-center gap-1.5 text-slate-300">
@@ -4320,6 +4340,212 @@
             document.addEventListener('DOMContentLoaded', attachCricPulse10OutOf10Engine);
         } else {
             attachCricPulse10OutOf10Engine();
+        }
+    })();
+    </script>
+
+    <!-- CRICPULSE PRO 10/10 UPGRADE PART 3: FINAL IPL DUAL SPLIT BARS, INLINE PLAYER SWITCH, CLOUD TIMESTAMP & DECLUTTER -->
+    <script>
+    (function() {
+        function attachCricPulsePart3Final() {
+            if (!window.app || !window.app._upgradedTo10OutOf10) {
+                setTimeout(attachCricPulsePart3Final, 80);
+                return;
+            }
+            const app = window.app;
+            if (app._upgradedPart3Final) return;
+            app._upgradedPart3Final = true;
+
+            app.lastCloudSyncTime = Date.now();
+
+            // 1. Track exact Cloud Sync Timestamp & update the Live Sync Pill
+            const origPush = app.pushToCloudRoom.bind(app);
+            app.pushToCloudRoom = async function() {
+                await origPush();
+                this.lastCloudSyncTime = Date.now();
+                updateCloudSyncBadge();
+            };
+            const origPull = app.pullFromCloudRoom.bind(app);
+            app.pullFromCloudRoom = async function(isBg) {
+                await origPull(isBg);
+                this.lastCloudSyncTime = Date.now();
+                updateCloudSyncBadge();
+            };
+
+            function updateCloudSyncBadge() {
+                const badge = document.getElementById('liveCloudSyncStatusBadge');
+                if (!badge) return;
+                const sec = Math.max(1, Math.floor((Date.now() - (app.lastCloudSyncTime || Date.now())) / 1000));
+                const hasUrl = !!app.getDatabaseBaseUrl();
+                badge.innerHTML = hasUrl
+                    ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced (${sec < 60 ? sec + 's ago' : Math.floor(sec / 60) + 'm ago'})`
+                    : `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> 💾 Local Instant Save`;
+            }
+            setInterval(updateCloudSyncBadge, 2000);
+
+            // 2. Auto-select SURVIVING partner if completedRuns before a Run Out / Stumping is odd (Batters Crossed!)
+            const wCompInput = document.getElementById('wicketCompletedRuns');
+            if (wCompInput) {
+                wCompInput.addEventListener('input', () => {
+                    const runs = parseInt(wCompInput.value, 10) || 0;
+                    const strikeSel = document.getElementById('wicketNextStrikeSelect');
+                    if (strikeSel) {
+                        strikeSel.value = (runs % 2 === 1) ? 'SURVIVING' : 'NEW';
+                    }
+                });
+            }
+
+            // 3. Add Bowler 3W / 5W / Hat-Trick Scorer Milestone Toast inside confirmWicket
+            const prevConfirmWicket = app.confirmWicket.bind(app);
+            app.confirmWicket = function() {
+                const inn = this.getActiveInnings();
+                const bowlerName = inn ? inn.currentBowler : null;
+                const prevWkts = (inn && bowlerName && inn.bowlStats[bowlerName]) ? inn.bowlStats[bowlerName].wickets : 0;
+                const prevHT = (inn && bowlerName && inn.bowlStats[bowlerName]) ? (inn.bowlStats[bowlerName].hatTricks || 0) : 0;
+
+                prevConfirmWicket();
+
+                const innAfter = this.getActiveInnings();
+                if (innAfter && bowlerName && innAfter.bowlStats[bowlerName]) {
+                    const newWkts = innAfter.bowlStats[bowlerName].wickets;
+                    const newHT = innAfter.bowlStats[bowlerName].hatTricks || 0;
+                    if (newHT > prevHT) {
+                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([70, 50, 90, 50, 120]);
+                        this.showToast(`🎩🔥 HAT-TRICK! ${bowlerName} takes 3 Wickets in 3 Balls!`, 'amber');
+                    } else if (prevWkts < 5 && newWkts >= 5) {
+                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([60, 50, 80, 50, 100]);
+                        this.showToast(`🔥 5-WICKET HAUL! Sensational spell by ${bowlerName} (${newWkts}-${innAfter.bowlStats[bowlerName].runs})!`, 'amber');
+                    } else if (prevWkts < 3 && newWkts >= 3) {
+                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([40, 60, 80]);
+                        this.showToast(`🎯 3-WICKET HAUL! ${bowlerName} strikes (${newWkts}-${innAfter.bowlStats[bowlerName].runs})!`, 'amber');
+                    }
+                }
+            };
+
+            // 4. Upgrade renderFullScorecard Partnership Section with True Dual-Color IPL Split Bars
+            const origRenderFullScorecard = app.renderFullScorecard.bind(app);
+            app.renderFullScorecard = function() {
+                origRenderFullScorecard();
+                const match = this.getActiveMatch();
+                if (!match) return;
+                const cards = document.querySelectorAll('#fullScorecardContainer > div.glass-card');
+                match.innings.forEach((inn, iIdx) => {
+                    const card = cards[iIdx];
+                    if (!card) return;
+                    const headings = Array.from(card.querySelectorAll('h4'));
+                    const pHeading = headings.find(h => h.textContent.includes('Partnership Breakdown'));
+                    if (!pHeading || !pHeading.parentElement) return;
+
+                    const stands = [
+                        ...(inn.partnershipsList || []),
+                        ...(inn.partnership && inn.partnership.balls > 0 ? [{
+                            batter1: inn.striker || 'Batter 1',
+                            batter2: inn.nonStriker || 'Partner',
+                            runs: inn.partnership.runs,
+                            balls: inn.partnership.balls,
+                            b1Name: inn.partnership.b1Name || inn.striker || 'Batter 1',
+                            b2Name: inn.partnership.b2Name || inn.nonStriker || 'Partner',
+                            b1Runs: inn.partnership.b1Runs ?? inn.partnership.runs,
+                            b1Balls: inn.partnership.b1Balls ?? inn.partnership.balls,
+                            b2Runs: inn.partnership.b2Runs ?? 0,
+                            b2Balls: inn.partnership.b2Balls ?? 0,
+                            extras: inn.partnership.extras ?? 0,
+                            unbeaten: true
+                        }] : [])
+                    ];
+
+                    pHeading.parentElement.innerHTML = `
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Partnership Breakdown (IPL Split View)</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                            ${stands.map((pt, idx) => {
+                                const b1Name = pt.b1Name || pt.batter1;
+                                const b2Name = pt.b2Name || pt.batter2;
+                                const hasSplit = pt.b1Runs !== undefined && pt.b2Runs !== undefined;
+                                const b1R = hasSplit ? pt.b1Runs : Math.ceil(pt.runs / 2);
+                                const b2R = hasSplit ? pt.b2Runs : Math.floor(pt.runs / 2);
+                                const b1B = pt.b1Balls !== undefined ? pt.b1Balls : '';
+                                const b2B = pt.b2Balls !== undefined ? pt.b2Balls : '';
+                                const exR = pt.extras || 0;
+                                const tot = Math.max(1, b1R + b2R + exR);
+                                const b1Pct = Math.round((b1R / tot) * 100);
+                                const b2Pct = Math.max(0, 100 - b1Pct);
+                                return `
+                                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-[10px] text-slate-400 font-bold uppercase">Stand #${idx + 1} ${pt.unbeaten ? '<span class="text-emerald-400">(Active *)</span>' : ''}</span>
+                                            <span class="score-font font-black text-amber-300">${pt.runs} R <span class="text-slate-400 font-normal">(${pt.balls}b)${exR > 0 ? ` • Ex: ${exR}` : ''}</span></span>
+                                        </div>
+                                        <div class="flex items-center justify-between text-[11px]">
+                                            <span class="font-bold text-emerald-300 truncate">${b1Name}: <strong class="score-font text-white">${b1R}</strong>${b1B !== '' ? ` (${b1B}b)` : ''}</span>
+                                            <span class="font-bold text-sky-300 truncate text-right">${b2Name}: <strong class="score-font text-white">${b2R}</strong>${b2B !== '' ? ` (${b2B}b)` : ''}</span>
+                                        </div>
+                                        <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden flex">
+                                            <div class="h-full bg-emerald-500 transition-all" style="width: ${b1Pct}%"></div>
+                                            <div class="h-full bg-sky-400 transition-all" style="width: ${b2Pct}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                });
+            };
+
+            // 5. Declutter Duplicate Scoreboard Nav & Add Quick Inline Player Switch on Live Match Console
+            const prevRenderAll = app.renderAll.bind(app);
+            app.renderAll = function() {
+                prevRenderAll();
+                const navWrap = document.getElementById('cricpulseBroadcastNavBar');
+                if (navWrap) {
+                    const syncEl = navWrap.querySelector('div.hidden.sm\\:flex');
+                    if (syncEl) {
+                        syncEl.id = 'liveCloudSyncStatusBadge';
+                        syncEl.classList.remove('hidden');
+                        syncEl.classList.add('flex');
+                    }
+                }
+
+                // Remove duplicate inline Hub | Scorecard | Analytics buttons inside the Scoreboard Card
+                const main = document.getElementById('mainViewContainer');
+                if (main && this.state.activeView === 'match') {
+                    const firstCardTopRow = main.querySelector('.glass-card .flex.items-center.justify-between.gap-2.text-\\[11px\\]');
+                    if (firstCardTopRow) {
+                        const dupBtnGroup = firstCardTopRow.querySelector('div.flex.items-center.gap-1.shrink-0');
+                        if (dupBtnGroup && !this.isSpectator) {
+                            dupBtnGroup.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold text-[10px]">⚡ Tap Batter to Swap • Tap Bowler to Change</span>`;
+                        } else if (dupBtnGroup) {
+                            dupBtnGroup.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 font-bold text-[10px]">🔴 LIVE FEED</span>`;
+                        }
+                    }
+
+                    // Make the 3-box On-Field Strip interactive for Scorers (Tap Striker/Non-Striker to Swap Strike, Tap Bowler to Change Bowler)
+                    if (!this.isSpectator) {
+                        const stripBoxes = main.querySelectorAll('.grid.grid-cols-3.gap-1\\.5 > div');
+                        if (stripBoxes.length === 3) {
+                            stripBoxes[0].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                            stripBoxes[0].title = 'Tap to Swap Strike';
+                            stripBoxes[0].onclick = () => app.swapStrikeManual();
+
+                            stripBoxes[1].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                            stripBoxes[1].title = 'Tap to Swap Strike';
+                            stripBoxes[1].onclick = () => app.swapStrikeManual();
+
+                            stripBoxes[2].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                            stripBoxes[2].title = 'Tap to Change Bowler';
+                            stripBoxes[2].onclick = () => app.openBowlerModal();
+                        }
+                    }
+                }
+                updateCloudSyncBadge();
+            };
+
+            app.renderAll();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', attachCricPulsePart3Final);
+        } else {
+            attachCricPulsePart3Final();
         }
     })();
     </script>
