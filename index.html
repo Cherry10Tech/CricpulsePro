@@ -120,6 +120,10 @@
         </div>
 
         <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+            <!-- Live Cloud Sync Status Dot/Pill (Moved to Header so it NEVER overlaps the 4-Tab Nav Bar on Mobile!) -->
+            <div id="liveCloudSyncStatusBadge" class="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-900/90 border border-slate-700/80 text-[10px] font-bold text-emerald-400 whitespace-nowrap" title="Cloud Sync Status">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> <span class="hidden md:inline">Cloud Synced</span>
+            </div>
             <!-- Spectator Manual Refresh Score Button (Compact on mobile so header never overlaps) -->
             <button onclick="app.manualSpectatorRefresh()" class="spectator-only hidden tap-btn flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-[11px] sm:text-xs font-bold text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
                 <i id="specRefreshIcon" class="fa-solid fa-arrows-rotate"></i> <span>Refresh</span>
@@ -664,7 +668,11 @@
                         </label>
                     </div>
                 </div>
-            <!-- RETIRE BATTER MODAL -->
+            </div>
+        </div>
+    </div>
+
+    <!-- RETIRE BATTER MODAL -->
     <div id="modal-retire" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
         <div class="glass-card rounded-3xl max-w-sm w-full p-5 border border-amber-500/40 space-y-4">
             <div class="flex items-center justify-between">
@@ -1298,12 +1306,11 @@
                 const bDeliveries = (inn.ballLog || []).filter(b => b.bowler === latestBall.bowler && !String(b.label).toUpperCase().includes('WD') && !String(b.label).toUpperCase().includes('NB'));
                 const isHatTrickWicket = lbl.includes('W') && !lbl.includes('WD') && bDeliveries.length >= 3 &&
                     String(bDeliveries[0].label).includes('W') && String(bDeliveries[1].label).includes('W') && String(bDeliveries[2].label).includes('W');
+                const last3Legal = (inn.ballLog || []).filter(b => !String(b.label).toUpperCase().includes('WD')).slice(0, 3);
+                const isHatTrickSixes = lbl.includes('6') && last3Legal.length === 3 && last3Legal.every(b => String(b.label).includes('6'));
+                const isHatTrickFours = lbl.includes('4') && !lbl.includes('WD') && last3Legal.length === 3 && last3Legal.every(b => String(b.label).includes('4') && !String(b.label).toUpperCase().includes('WD'));
 
-                const bLogLegal = (inn.ballLog || []).filter(b => b.striker === batterName && !String(b.label).toUpperCase().includes('WD'));
-                const isHatTrickSixes = lbl.includes('6') && bLogLegal.length >= 3 && String(bLogLegal[0].label).includes('6') && String(bLogLegal[1].label).includes('6') && String(bLogLegal[2].label).includes('6');
-                const isHatTrickFours = lbl.includes('4') && !lbl.includes('WD') && bLogLegal.length >= 3 && String(bLogLegal[0].label).includes('4') && String(bLogLegal[1].label).includes('4') && String(bLogLegal[2].label).includes('4');
-
-                if (isHatTrickWicket) {
+                if (lbl.includes('W') && !lbl.includes('WD') && isHatTrickWicket) {
                     this.triggerSpectatorTVOverlay('WICKET', '🎩🔥 HAT-TRICK HERO!', `${latestBall.bowler} takes 3 Wickets in 3 Balls!`, 'rose');
                 } else if (isHatTrickSixes) {
                     this.triggerSpectatorTVOverlay('SIX', '🚀🔥 HAT-TRICK OF MAXIMUMS!', `${batterName} smashes 3 SIXES in a row (6 • 6 • 6)!`, 'purple');
@@ -1331,6 +1338,12 @@
                     this.triggerSpectatorTVOverlay('FOUR', '⚡ BOUNDARY! 4', `CRACKING FOUR raced away by ${batterName}!`, 'emerald');
                 } else if (lbl.includes('NB')) {
                     this.triggerSpectatorTVOverlay('FOUR', '🚨 NO BALL — FREE HIT!', `Next delivery to ${inn.striker} is a FREE HIT!`, 'amber');
+                }
+
+                // Speak live voice commentary on Spectator phones whenever Audio is enabled!
+                if (latestBall.desc) {
+                    const cleanSpeech = latestBall.desc.replace(/[🔥🚀⚡🎯🧤☝️💥🎩⚖️]/g, '');
+                    this.speakCommentary(cleanSpeech);
                 }
             }
 
@@ -3004,80 +3017,80 @@
 
                 return `
                     <div class="space-y-3">
-                        <!-- 1. ULTRA-COMPACT TOP SCOREBOARD HEADER (KEEPS SCORER PAD RIGHT IN THUMB ZONE IN BOTH 1ST & 2ND INNINGS!) -->
-                        <div class="glass-card rounded-3xl p-3 sm:p-4 border border-slate-800 space-y-2.5 shadow-2xl">
-                            <div class="flex items-center justify-between gap-2 text-[11px] font-bold text-slate-400 pb-1.5 border-b border-slate-800/80">
-                                <span class="uppercase tracking-wider flex items-center gap-1.5 text-slate-300 truncate">
-                                    <i class="fa-solid fa-satellite-dish text-emerald-400 animate-pulse"></i> ${match.seriesName || 'Live Match'} • ${match.venue}
+                        <div class="glass-card rounded-3xl p-3 sm:p-4 border border-slate-800 space-y-2 shadow-2xl">
+                            <div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-bold text-slate-300 pb-1.5 border-b border-slate-800/80">
+                                <span class="uppercase tracking-wider flex items-center gap-1.5 text-emerald-300 break-words leading-snug">
+                                    <i class="fa-solid fa-satellite-dish text-emerald-400 animate-pulse shrink-0"></i>
+                                    <span>${match.seriesName || this.state.seriesName || 'Live Match'} • <span class="text-slate-400">${match.venue}</span></span>
                                 </span>
-                                <div class="flex items-center gap-1 shrink-0">
-                                    <button onclick="app.navigate('hub')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200"><i class="fa-solid fa-house mr-1"></i>Hub</button>
-                                    <button onclick="app.navigate('scorecard')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400"><i class="fa-solid fa-table-list mr-1"></i>Scorecard</button>
-                                    <button onclick="app.navigate('analytics')" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400"><i class="fa-solid fa-chart-line mr-1"></i>Analytics</button>
-                                </div>
+                                ${match.innings.length >= 2 && match.innings[0] ? `
+                                    <span class="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-[10px] text-slate-300 score-font shrink-0">
+                                        1st Inn: <strong class="text-white">${match.innings[0].battingTeamName} ${match.innings[0].runs}/${match.innings[0].wickets}</strong> (${this.formatOvers(match.innings[0].legalBalls)})
+                                    </span>
+                                ` : ''}
                             </div>
 
                             ${match.status === 'completed' ? `
-                                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border-2 border-amber-400/60 text-center space-y-2">
-                                    <div class="text-[11px] font-black uppercase tracking-widest text-amber-300">🏆 Official Match Result</div>
-                                    <h2 class="text-lg sm:text-2xl font-black text-white">${match.resultText || 'Match Completed'}</h2>
+                                <div class="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border-2 border-amber-400/60 text-center space-y-1.5">
+                                    <div class="text-[10px] font-black uppercase tracking-widest text-amber-300">🏆 Official Match Result</div>
+                                    <h2 class="text-base sm:text-2xl font-black text-white">${match.resultText || 'Match Completed'}</h2>
                                     <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
-                                        <button onclick="app.navigate('scorecard')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-black text-xs">View Full Scorecard</button>
-                                        <button onclick="app.navigate('analytics')" class="px-3.5 py-1.5 rounded-xl bg-purple-600 text-white font-black text-xs">View MVP &amp; Worm Charts</button>
-                                        ${match.winnerTeamKey === 'TIE' ? `<button onclick="app.openSuperOverModal()" class="scorer-only px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg">🔥 Start Super Over (Scorer)</button>` : ''}
+                                        <button onclick="app.navigate('scorecard')" class="px-3 py-1 rounded-xl bg-emerald-600 text-white font-black text-xs">View Full Scorecard</button>
+                                        <button onclick="app.navigate('analytics')" class="px-3 py-1 rounded-xl bg-purple-600 text-white font-black text-xs">View MVP &amp; Worm Charts</button>
+                                        ${match.winnerTeamKey === 'TIE' ? `<button onclick="app.openSuperOverModal()" class="scorer-only px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg">🔥 Start Super Over (Scorer)</button>` : ''}
                                     </div>
                                 </div>
                             ` : ''}
 
                             <!-- Row 1: Score + Compact Target Pill on a single clean row -->
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="flex items-baseline gap-2.5 flex-wrap">
+                            <div class="flex flex-wrap items-center justify-between gap-1.5">
+                                <div class="flex items-baseline gap-2 flex-wrap">
                                     <div class="inline-flex items-center gap-1.5 text-xs uppercase font-black tracking-wider text-slate-200">
                                         <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${batTeamColor}"></span>
                                         ${inn.battingTeamName}
                                     </div>
-                                    <h1 class="score-font text-3xl sm:text-4xl font-black text-white leading-none">${inn.runs}/${inn.wickets}</h1>
-                                    <span class="score-font text-sm sm:text-base text-slate-300 font-bold">(${this.formatOvers(inn.legalBalls)}/${maxOversThisInnings} ov)</span>
-                                    <span class="text-xs text-slate-400">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong>${targetRuns ? ` • RRR: <strong class="text-amber-300 score-font">${rrrNum.toFixed(2)}</strong>` : ''}</span>
+                                    <h1 class="score-font text-2xl sm:text-4xl font-black text-white leading-none">${inn.runs}/${inn.wickets}</h1>
+                                    <span class="score-font text-xs sm:text-base text-slate-300 font-bold">(${this.formatOvers(inn.legalBalls)}/${maxOversThisInnings} ov)</span>
+                                    <span class="text-[11px] text-slate-400">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong>${targetRuns ? ` • RRR: <strong class="text-amber-300 score-font">${rrrNum.toFixed(2)}</strong>` : ''}</span>
                                 </div>
                                 ${targetRuns ? `
-                                    <div class="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs font-bold text-amber-300 score-font">
+                                    <div class="px-2.5 py-0.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] font-bold text-amber-300 score-font">
                                         🎯 Need <strong class="text-white">${runsNeeded}</strong> off <strong class="text-white">${totalBallsRem}b</strong> (Target ${targetRuns})
                                     </div>
                                 ` : `
-                                    <div class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 score-font">
+                                    <div class="px-2.5 py-0.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 score-font">
                                         📈 Proj @CRR: <strong class="text-emerald-400">${projAtCrr}</strong> • @${tier2Rpo}: <strong class="text-amber-300">${projAtTier2}</strong>
                                     </div>
                                 `}
                             </div>
 
                             <!-- Row 2: Compact 3-Box On-Field Strip (Striker | Non-Striker | Bowler) -->
-                            <div class="grid grid-cols-3 gap-1.5 p-2 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs">
+                            <div class="grid grid-cols-3 gap-1.5 p-1.5 sm:p-2 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs">
                                 <div class="min-w-0">
-                                    <span class="text-[10px] text-emerald-400 font-bold block">🏏 Striker *</span>
+                                    <span class="text-[10px] text-emerald-400 font-bold flex items-center justify-between"><span>🏏 Striker *</span><span class="scorer-only text-[9px] text-slate-400">⇄</span></span>
                                     <span class="font-black text-white truncate block">${inn.striker || '-'}</span>
                                     <span class="score-font text-emerald-300 font-bold whitespace-nowrap">${strikerObj ? `${strikerObj.runs} (${strikerObj.balls})` : '0 (0)'}</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <span class="text-[10px] text-slate-400 font-bold block">🏏 Non-Striker</span>
+                                    <span class="text-[10px] text-slate-400 font-bold flex items-center justify-between"><span>🏏 Non-Striker</span><span class="scorer-only text-[9px] text-slate-500">⇄</span></span>
                                     <span class="font-bold text-slate-200 truncate block">${inn.nonStriker || '-'}</span>
                                     <span class="score-font text-slate-400 whitespace-nowrap">${nonStrikerObj ? `${nonStrikerObj.runs} (${nonStrikerObj.balls})` : '0 (0)'}</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <span class="text-[10px] text-sky-400 font-bold block">⚾ Bowler</span>
+                                    <span class="text-[10px] text-sky-400 font-bold flex items-center justify-between"><span>⚾ Bowler</span><span class="scorer-only text-[9px] text-sky-400">↻</span></span>
                                     <span class="font-bold text-white truncate block">${inn.currentBowler || '-'}</span>
                                     <span class="score-font text-sky-300 font-bold whitespace-nowrap">${bowlerObj ? `${bowlerObj.wickets}-${bowlerObj.runs} (${this.formatOvers(bowlerObj.balls)})` : '0-0'}</span>
                                 </div>
                             </div>
 
                             <!-- Row 3: This Over Ball Strip -->
-                            <div class="flex items-center gap-2 overflow-x-auto pt-1.5 border-t border-slate-800/80">
-                                <span class="text-[11px] font-black uppercase tracking-wider ${isOverCompleteMoment ? 'text-emerald-400' : 'text-slate-400'} shrink-0">
+                            <div class="flex items-center gap-2 overflow-x-auto pt-1 border-t border-slate-800/80">
+                                <span class="text-[10px] font-black uppercase tracking-wider ${isOverCompleteMoment ? 'text-emerald-400' : 'text-slate-400'} shrink-0">
                                     ${isOverCompleteMoment ? `Over ${Math.floor(inn.legalBalls / 6)} Done:` : 'This Over:'}
                                 </span>
                                 <div class="flex items-center gap-1">
-                                    ${inn.thisOver.length === 0 ? `<span class="text-xs text-slate-500">0 balls bowled in this over</span>` : inn.thisOver.map(b => `
-                                        <span class="px-2 h-6 min-w-[26px] rounded-lg flex items-center justify-center font-black text-xs score-font ${b.color === 'rose' ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50' : (b.color === 'emerald' ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50' : (b.color === 'amber' ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50' : 'bg-slate-800 text-slate-200 border border-slate-700'))}">${b.label}</span>
+                                    ${inn.thisOver.length === 0 ? `<span class="text-[11px] text-slate-500">0 balls bowled in this over</span>` : inn.thisOver.map(b => `
+                                        <span class="px-1.5 h-5 min-w-[22px] rounded-md flex items-center justify-center font-black text-[11px] score-font ${b.color === 'rose' ? 'bg-rose-500/25 text-rose-300 border border-rose-500/50' : (b.color === 'emerald' ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50' : (b.color === 'amber' ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50' : 'bg-slate-800 text-slate-200 border border-slate-700'))}">${b.label}</span>
                                     `).join('')}
                                     ${inn.isFreeHit ? `<span class="px-2 py-0.5 rounded-lg bg-amber-500/25 border border-amber-500/50 text-amber-300 font-black text-[10px] uppercase tracking-wider animate-pulse shrink-0">⚡ FREE HIT</span>` : ''}
                                 </div>
@@ -3107,76 +3120,74 @@
                         </div>
 
                         <!-- 2. MAIN CONSOLE GRID -->
-                        <div class="grid ${isLandscape ? 'grid-cols-12' : 'grid-cols-1 lg:grid-cols-12'} gap-4">
+                        <div class="grid ${isLandscape ? 'grid-cols-12' : 'grid-cols-1 lg:grid-cols-12'} gap-3">
                             
-                            <!-- SCORER TAP KEYPAD (ORDER-1 ON MOBILE SO IT SITS IMMEDIATELY UNDER SCOREBOARD HEADER IN BOTH INNINGS!) -->
+                            <!-- SCORER TAP KEYPAD (ULTRA-COMPACT SO 100% OF BUTTONS FIT ON 1 MOBILE SCREEN WITHOUT CUTOFF!) -->
                             <div class="scorer-only ${isLandscape ? 'col-span-5 order-2' : 'order-1 lg:order-2 lg:col-span-5'}">
-                                <div class="glass-card rounded-3xl p-3.5 sm:p-4 border-2 border-emerald-500/35 space-y-3 shadow-2xl">
-                                    <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
-                                        <span class="text-xs font-black uppercase tracking-wider text-emerald-400">
+                                <div class="glass-card rounded-3xl p-2.5 sm:p-4 border-2 border-emerald-500/35 space-y-2 shadow-2xl">
+                                    <div class="flex items-center justify-between gap-1.5 pb-1.5 border-b border-slate-800">
+                                        <span class="text-[11px] font-black uppercase tracking-wider text-emerald-400">
                                             <i class="fa-solid fa-gamepad mr-1"></i> Scorer Pad
                                         </span>
                                         <div class="flex items-center gap-1.5">
-                                            <button onclick="app.swapStrikeManual()" class="tap-btn px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-amber-300 border border-slate-700">
+                                            <button onclick="app.swapStrikeManual()" class="tap-btn px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-amber-300 border border-slate-700">
                                                 <i class="fa-solid fa-arrows-rotate mr-1"></i>Swap Batsmen
                                             </button>
-                                            <button onclick="app.undoLastBall()" class="tap-btn px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-xs font-bold text-rose-300 border border-rose-500/30">
-                                                <i class="fa-solid fa-rotate-left mr-1"></i>Undo Ball ${undoCount > 0 ? `(${undoCount})` : ''}
+                                            <button onclick="app.undoLastBall()" class="tap-btn px-2.5 py-1 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-[11px] font-bold text-rose-300 border border-rose-500/30">
+                                                <i class="fa-solid fa-rotate-left mr-1"></i>Undo ${undoCount > 0 ? `(${undoCount})` : ''}
                                             </button>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">1. Tap Extra First (If Wide / No-Ball / Bye):</span>
-                                        <div class="grid grid-cols-4 gap-2">
-                                            <button id="extraBtn-WD" onclick="app.toggleExtraMode('WD')" class="tap-btn py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-black text-amber-300">Wide</button>
-                                            <button id="extraBtn-NB" onclick="app.toggleExtraMode('NB')" class="tap-btn py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-black text-amber-300">No-Ball</button>
-                                            <button id="extraBtn-B" onclick="app.toggleExtraMode('B')" class="tap-btn py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">Bye</button>
-                                            <button id="extraBtn-LB" onclick="app.toggleExtraMode('LB')" class="tap-btn py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">Leg-Bye</button>
+                                        <div class="grid grid-cols-4 gap-1.5">
+                                            <button id="extraBtn-WD" onclick="app.toggleExtraMode('WD')" class="tap-btn py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-black text-amber-300">Wide</button>
+                                            <button id="extraBtn-NB" onclick="app.toggleExtraMode('NB')" class="tap-btn py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-black text-amber-300">No-Ball</button>
+                                            <button id="extraBtn-B" onclick="app.toggleExtraMode('B')" class="tap-btn py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">Bye</button>
+                                            <button id="extraBtn-LB" onclick="app.toggleExtraMode('LB')" class="tap-btn py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-sky-300">Leg-Bye</button>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">2. Tap Runs Scored on Delivery:</span>
-                                        <div class="grid grid-cols-3 gap-2">
-                                            <button onclick="app.recordDelivery(0)" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-xl font-black text-slate-200">
-                                                0 <span class="block text-[10px] font-sans font-semibold text-slate-400">Dot Ball</span>
+                                        <div class="grid grid-cols-3 gap-1.5">
+                                            <button onclick="app.recordDelivery(0)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-lg sm:text-xl font-black text-slate-200 leading-tight">
+                                                0 <span class="block text-[9px] font-sans font-semibold text-slate-400">Dot Ball</span>
                                             </button>
-                                            <button onclick="app.recordDelivery(1)" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-xl font-black text-white">
-                                                1 <span class="block text-[10px] font-sans font-semibold text-slate-400">Single</span>
+                                            <button onclick="app.recordDelivery(1)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-lg sm:text-xl font-black text-white leading-tight">
+                                                1 <span class="block text-[9px] font-sans font-semibold text-slate-400">Single</span>
                                             </button>
-                                            <button onclick="app.recordDelivery(2)" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-xl font-black text-white">
-                                                2 <span class="block text-[10px] font-sans font-semibold text-slate-400">Double</span>
+                                            <button onclick="app.recordDelivery(2)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-lg sm:text-xl font-black text-white leading-tight">
+                                                2 <span class="block text-[9px] font-sans font-semibold text-slate-400">Double</span>
                                             </button>
-                                            <button onclick="app.recordDelivery(3)" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-xl font-black text-white">
-                                                3 <span class="block text-[10px] font-sans font-semibold text-slate-400">Triple</span>
+                                            <button onclick="app.recordDelivery(3)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 score-font text-lg sm:text-xl font-black text-white leading-tight">
+                                                3 <span class="block text-[9px] font-sans font-semibold text-slate-400">Triple</span>
                                             </button>
-                                            <button onclick="app.recordDelivery(4)" class="tap-btn py-3 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border-2 border-emerald-500/50 score-font text-xl font-black text-emerald-300">
-                                                4 <span class="block text-[10px] font-sans font-black text-emerald-400">FOUR!</span>
+                                            <button onclick="app.recordDelivery(4)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 border-2 border-emerald-500/50 score-font text-lg sm:text-xl font-black text-emerald-300 leading-tight">
+                                                4 <span class="block text-[9px] font-sans font-black text-emerald-400">FOUR!</span>
                                             </button>
-                                            <button onclick="app.recordDelivery(6)" class="tap-btn py-3 rounded-2xl bg-purple-500/20 hover:bg-purple-500/30 border-2 border-purple-500/50 score-font text-xl font-black text-purple-300">
-                                                6 <span class="block text-[10px] font-sans font-black text-purple-300">SIX!</span>
+                                            <button onclick="app.recordDelivery(6)" class="tap-btn py-2 sm:py-2.5 rounded-2xl bg-purple-500/20 hover:bg-purple-500/30 border-2 border-purple-500/50 score-font text-lg sm:text-xl font-black text-purple-300 leading-tight">
+                                                6 <span class="block text-[9px] font-sans font-black text-purple-300">SIX!</span>
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-2 gap-2 pt-1">
-                                        <button onclick="app.openWicketModal()" class="tap-btn py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs tracking-wide shadow-lg shadow-rose-600/25 flex items-center justify-center gap-1.5">
+                                    <div class="grid grid-cols-2 gap-1.5">
+                                        <button onclick="app.openWicketModal()" class="tap-btn py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs tracking-wide shadow-lg shadow-rose-600/25 flex items-center justify-center gap-1.5">
                                             <i class="fa-solid fa-skull-crossbones"></i> OUT / WICKET
                                         </button>
                                         <div class="grid grid-cols-2 gap-1.5">
-                                            <button onclick="app.recordCustomRunsPrompt()" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200">+5/Custom</button>
-                                            <button onclick="app.openRetireModal()" class="tap-btn py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-amber-300">Retire</button>
+                                            <button onclick="app.recordCustomRunsPrompt()" class="tap-btn py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200">+5/Custom</button>
+                                            <button onclick="app.openRetireModal()" class="tap-btn py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-amber-300">Retire</button>
                                         </div>
                                     </div>
 
-                                    <div class="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                                        <button onclick="app.openMidMatchRulesModal()" class="tap-btn px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700">
+                                    <div class="pt-1.5 border-t border-slate-800 flex flex-wrap items-center justify-between gap-1.5">
+                                        <button onclick="app.openMidMatchRulesModal()" class="tap-btn px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700">
                                             <i class="fa-solid fa-sliders text-sky-400 mr-1"></i>Rules &amp; Squad
                                         </button>
                                         <div class="flex items-center gap-1.5">
-                                            ${(!inn.isSuperOverInnings && match.innings.length === 1) || (inn.isSuperOverInnings && inn.soInningsNumber === 1) ? `<button onclick="app.openInningsBreakModal(app.getActiveMatch())" class="tap-btn px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold">End 1st Inn</button>` : ''}
-                                            <button onclick="app.openDoubleConfirmEndMatchModal()" class="tap-btn px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold">End Match</button>
+                                            ${(!inn.isSuperOverInnings && match.innings.length === 1) || (inn.isSuperOverInnings && inn.soInningsNumber === 1) ? `<button onclick="app.openInningsBreakModal(app.getActiveMatch())" class="tap-btn px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold">End 1st Inn</button>` : ''}
+                                            <button onclick="app.openDoubleConfirmEndMatchModal()" class="tap-btn px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-[11px] font-bold">End Match</button>
                                         </div>
                                     </div>
                                 </div>
@@ -4133,24 +4144,19 @@
             if (!match) return '';
 
             return `
-                <div class="glass-card rounded-2xl p-1.5 flex items-center justify-between gap-1 border border-slate-800 shadow-lg text-xs">
-                    <div class="flex items-center gap-1 overflow-x-auto">
-                        <button onclick="app.navigate('match')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                            <i class="fa-solid fa-satellite-dish"></i> Live Match
-                        </button>
-                        <button onclick="app.navigate('scorecard')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                            <i class="fa-solid fa-table-list"></i> Scorecard
-                        </button>
-                        <button onclick="app.navigate('analytics')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                            <i class="fa-solid fa-chart-line"></i> Analytics &amp; MVP
-                        </button>
-                        <button onclick="app.navigate('hub')" class="px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
-                            <i class="fa-solid fa-trophy"></i> Series Hub
-                        </button>
-                    </div>
-                    <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-emerald-400 shrink-0">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced
-                    </div>
+                <div class="glass-card rounded-2xl p-1 grid grid-cols-4 gap-1 border border-slate-800 shadow-lg text-[11px] sm:text-xs">
+                    <button onclick="app.navigate('match')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-satellite-dish"></i> <span>Live</span><span class="hidden sm:inline"> Match</span>
+                    </button>
+                    <button onclick="app.navigate('scorecard')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-table-list"></i> <span>Card</span><span class="hidden sm:inline"> / Full</span>
+                    </button>
+                    <button onclick="app.navigate('analytics')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-chart-line"></i> <span>Stats</span><span class="hidden sm:inline"> &amp; MVP</span>
+                    </button>
+                    <button onclick="app.navigate('hub')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                        <i class="fa-solid fa-trophy"></i> <span>Hub</span><span class="hidden sm:inline"> / Series</span>
+                    </button>
                 </div>
             `;
         }
@@ -4378,48 +4384,35 @@
                 const sec = Math.max(1, Math.floor((Date.now() - (app.lastCloudSyncTime || Date.now())) / 1000));
                 const hasUrl = !!app.getDatabaseBaseUrl();
                 badge.innerHTML = hasUrl
-                    ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> 🟢 Cloud Synced (${sec < 60 ? sec + 's ago' : Math.floor(sec / 60) + 'm ago'})`
-                    : `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> 💾 Local Instant Save`;
+                    ? `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span> <span>🟢 ${sec < 60 ? sec + 's' : Math.floor(sec / 60) + 'm'}</span><span class="hidden md:inline"> Synced</span>`
+                    : `<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span> <span>💾 Saved</span>`;
             }
             setInterval(updateCloudSyncBadge, 2000);
 
-            // 2. Auto-select SURVIVING partner if completedRuns before a Run Out / Stumping is odd (Batters Crossed!)
-            const wCompInput = document.getElementById('wicketCompletedRuns');
-            if (wCompInput) {
-                wCompInput.addEventListener('input', () => {
-                    const runs = parseInt(wCompInput.value, 10) || 0;
-                    const strikeSel = document.getElementById('wicketNextStrikeSelect');
-                    if (strikeSel) {
-                        strikeSel.value = (runs % 2 === 1) ? 'SURVIVING' : 'NEW';
-                    }
-                });
-            }
-
-            // 3. Add Bowler 3W / 5W / Hat-Trick Scorer Milestone Toast inside confirmWicket
-            const prevConfirmWicket = app.confirmWicket.bind(app);
-            app.confirmWicket = function() {
-                const inn = this.getActiveInnings();
-                const bowlerName = inn ? inn.currentBowler : null;
-                const prevWkts = (inn && bowlerName && inn.bowlStats[bowlerName]) ? inn.bowlStats[bowlerName].wickets : 0;
-                const prevHT = (inn && bowlerName && inn.bowlStats[bowlerName]) ? (inn.bowlStats[bowlerName].hatTricks || 0) : 0;
-
-                prevConfirmWicket();
-
-                const innAfter = this.getActiveInnings();
-                if (innAfter && bowlerName && innAfter.bowlStats[bowlerName]) {
-                    const newWkts = innAfter.bowlStats[bowlerName].wickets;
-                    const newHT = innAfter.bowlStats[bowlerName].hatTricks || 0;
-                    if (newHT > prevHT) {
-                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([70, 50, 90, 50, 120]);
-                        this.showToast(`🎩🔥 HAT-TRICK! ${bowlerName} takes 3 Wickets in 3 Balls!`, 'amber');
-                    } else if (prevWkts < 5 && newWkts >= 5) {
-                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([60, 50, 80, 50, 100]);
-                        this.showToast(`🔥 5-WICKET HAUL! Sensational spell by ${bowlerName} (${newWkts}-${innAfter.bowlStats[bowlerName].runs})!`, 'amber');
-                    } else if (prevWkts < 3 && newWkts >= 3) {
-                        if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback([40, 60, 80]);
-                        this.showToast(`🎯 3-WICKET HAUL! ${bowlerName} strikes (${newWkts}-${innAfter.bowlStats[bowlerName].runs})!`, 'amber');
-                    }
+            // Replace browser prompt() on +5/Custom Runs with a sleek Dark Broadcast Quick-Picker Modal!
+            app.recordCustomRunsPrompt = function() {
+                let modal = document.getElementById('modal-custom-runs');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'modal-custom-runs';
+                    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4';
+                    modal.innerHTML = `
+                        <div class="glass-card rounded-3xl max-w-xs w-full p-5 border border-emerald-500/40 space-y-4 text-center">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-black text-emerald-400">⚡ Custom / Overthrow Runs</h3>
+                                <button onclick="app.closeModal('modal-custom-runs')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <p class="text-xs text-slate-300">Tap total runs scored on this ball (including overthrows):</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="app.closeModal('modal-custom-runs'); app.recordDelivery(5)" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-white score-font text-base border border-slate-700">+5 Runs</button>
+                                <button onclick="app.closeModal('modal-custom-runs'); app.recordDelivery(6)" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-white score-font text-base border border-slate-700">+6 Runs</button>
+                                <button onclick="app.closeModal('modal-custom-runs'); app.recordDelivery(7)" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 font-black text-white score-font text-base border border-slate-700">+7 Runs</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
                 }
+                modal.classList.remove('hidden');
             };
 
             // 4. Upgrade renderFullScorecard Partnership Section with True Dual-Color IPL Split Bars
@@ -4495,45 +4488,23 @@
             const prevRenderAll = app.renderAll.bind(app);
             app.renderAll = function() {
                 prevRenderAll();
-                const navWrap = document.getElementById('cricpulseBroadcastNavBar');
-                if (navWrap) {
-                    const syncEl = navWrap.querySelector('div.hidden.sm\\:flex');
-                    if (syncEl) {
-                        syncEl.id = 'liveCloudSyncStatusBadge';
-                        syncEl.classList.remove('hidden');
-                        syncEl.classList.add('flex');
-                    }
-                }
 
-                // Remove duplicate inline Hub | Scorecard | Analytics buttons inside the Scoreboard Card
+                // Make the 3-box On-Field Strip interactive for Scorers (Tap Striker/Non-Striker to Swap Strike, Tap Bowler to Change Bowler)
                 const main = document.getElementById('mainViewContainer');
-                if (main && this.state.activeView === 'match') {
-                    const firstCardTopRow = main.querySelector('.glass-card .flex.items-center.justify-between.gap-2.text-\\[11px\\]');
-                    if (firstCardTopRow) {
-                        const dupBtnGroup = firstCardTopRow.querySelector('div.flex.items-center.gap-1.shrink-0');
-                        if (dupBtnGroup && !this.isSpectator) {
-                            dupBtnGroup.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold text-[10px]">⚡ Tap Batter to Swap • Tap Bowler to Change</span>`;
-                        } else if (dupBtnGroup) {
-                            dupBtnGroup.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 font-bold text-[10px]">🔴 LIVE FEED</span>`;
-                        }
-                    }
+                if (main && this.state.activeView === 'match' && !this.isSpectator) {
+                    const stripBoxes = main.querySelectorAll('.grid.grid-cols-3.gap-1\\.5 > div');
+                    if (stripBoxes.length === 3) {
+                        stripBoxes[0].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                        stripBoxes[0].title = 'Tap to Swap Strike';
+                        stripBoxes[0].onclick = () => app.swapStrikeManual();
 
-                    // Make the 3-box On-Field Strip interactive for Scorers (Tap Striker/Non-Striker to Swap Strike, Tap Bowler to Change Bowler)
-                    if (!this.isSpectator) {
-                        const stripBoxes = main.querySelectorAll('.grid.grid-cols-3.gap-1\\.5 > div');
-                        if (stripBoxes.length === 3) {
-                            stripBoxes[0].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
-                            stripBoxes[0].title = 'Tap to Swap Strike';
-                            stripBoxes[0].onclick = () => app.swapStrikeManual();
+                        stripBoxes[1].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                        stripBoxes[1].title = 'Tap to Swap Strike';
+                        stripBoxes[1].onclick = () => app.swapStrikeManual();
 
-                            stripBoxes[1].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
-                            stripBoxes[1].title = 'Tap to Swap Strike';
-                            stripBoxes[1].onclick = () => app.swapStrikeManual();
-
-                            stripBoxes[2].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
-                            stripBoxes[2].title = 'Tap to Change Bowler';
-                            stripBoxes[2].onclick = () => app.openBowlerModal();
-                        }
+                        stripBoxes[2].classList.add('cursor-pointer', 'hover:bg-slate-800/80', 'rounded-xl', 'p-1', 'transition-all');
+                        stripBoxes[2].title = 'Tap to Change Bowler';
+                        stripBoxes[2].onclick = () => app.openBowlerModal();
                     }
                 }
                 updateCloudSyncBadge();
