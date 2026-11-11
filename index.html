@@ -22,7 +22,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #060911; color: #f8fafc; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #060911; background-image: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.11), transparent 60%); color: #f8fafc; overflow-x: hidden; }
         .score-font { font-family: 'JetBrains Mono', monospace; }
         .glass-card { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(51, 65, 85, 0.55); box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55); }
         .glass-header { background: rgba(6, 9, 17, 0.92); backdrop-filter: blur(16px); }
@@ -30,8 +30,11 @@
         .tap-btn:active { transform: scale(0.93); }
         @keyframes tvPopSpring { 0% { transform: scale(0.65); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes tvTimerBar { from { width: 100%; } to { width: 0%; } }
+        @keyframes broadcastSweep { 0% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(220%) skewX(-20deg); } }
         .tv-pop-anim { animation: tvPopSpring 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .tv-timer-anim { animation: tvTimerBar 3.2s linear forwards; }
+        .tv-shimmer-sweep::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); animation: broadcastSweep 2.4s infinite; pointer-events: none; }
+        .broadcast-pattern { background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px); background-size: 14px 14px; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #060911; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -39,23 +42,23 @@
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
 
-    <!-- 1. SPECTATOR TV BROADCAST OVERLAY (CINEMATIC STADIUM POPUP) -->
+    <!-- 1. SPECTATOR TV BROADCAST OVERLAY (CINEMATIC STADIUM POPUP - CLEAN BROADCAST HYPE) -->
     <div id="spectatorTvOverlay" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 transition-all duration-300">
-        <div id="spectatorTvCard" class="tv-pop-anim glass-card rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center border-2 border-emerald-500/70 shadow-2xl space-y-4 relative overflow-hidden">
-            <div id="spectatorTvGlow" class="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-30 bg-emerald-500"></div>
-            <div class="relative z-10 space-y-3">
+        <div id="spectatorTvCard" class="tv-pop-anim tv-shimmer-sweep glass-card rounded-3xl p-7 sm:p-9 max-w-lg w-full text-center border-2 border-emerald-500/70 shadow-2xl space-y-4 relative overflow-hidden">
+            <div id="spectatorTvGlow" class="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none opacity-40 bg-emerald-500"></div>
+            <div class="relative z-10 space-y-3.5">
                 <div id="spectatorTvBadge" class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px] uppercase tracking-widest border border-emerald-500/40">
                     <i class="fa-solid fa-satellite-dish animate-pulse"></i> Live Broadcast Feed
                 </div>
-                <div id="spectatorTvEmblem" class="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl mx-auto flex items-center justify-center text-4xl sm:text-5xl font-black score-font shadow-2xl border-2 border-white/20 bg-gradient-to-br from-emerald-500 to-teal-700 text-white">
+                <div id="spectatorTvEmblem" class="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl mx-auto flex items-center justify-center text-5xl sm:text-6xl font-black score-font shadow-2xl border-2 border-white/25 bg-gradient-to-br from-emerald-500 to-teal-700 text-white">
                     4
                 </div>
-                <h1 id="spectatorTvTitle" class="text-3xl sm:text-5xl font-black tracking-tight text-white uppercase drop-shadow-lg">FOUR!</h1>
-                <p id="spectatorTvSub" class="text-sm sm:text-base text-slate-200 font-semibold">Magnificent stroke through the covers!</p>
-                <div id="spectatorTvStatsPill" class="p-3 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-xs text-slate-200 font-bold score-font"></div>
-                <button onclick="app.closeSpectatorTvOverlay()" class="mt-1 px-6 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700">Dismiss Banner</button>
+                <h1 id="spectatorTvTitle" class="text-4xl sm:text-5xl font-black tracking-tight text-white uppercase drop-shadow-lg">FOUR!</h1>
+                <p id="spectatorTvSub" class="text-sm sm:text-base text-slate-200 font-bold max-w-md mx-auto leading-snug">Magnificent stroke through the covers!</p>
+                <div id="spectatorTvStatsPill" class="hidden"></div>
+                <button onclick="app.closeSpectatorTvOverlay()" class="mt-2 px-6 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700">Dismiss</button>
             </div>
-            <div class="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-3">
+            <div class="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-4">
                 <div id="spectatorTvProgressBar" class="h-full bg-emerald-400 tv-timer-anim"></div>
             </div>
         </div>
@@ -497,28 +500,56 @@
         </div>
     </div>
 
-    <!-- 360 WAGON WHEEL DIRECTION MODAL -->
-    <div id="modal-wagon" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
-        <div class="glass-card rounded-3xl max-w-sm w-full p-6 border border-purple-500/40 space-y-4 text-center">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-black text-purple-400 flex items-center gap-2">
-                    <i class="fa-solid fa-compass"></i> 360° Shot Zone
+    <!-- 360° INTERACTIVE FULL CRICKET GROUND WAGON WHEEL MODAL (TAP ANYWHERE ON TURF TO MARK SHOT!) -->
+    <div id="modal-wagon" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-3 sm:p-4">
+        <div class="glass-card rounded-3xl max-w-sm w-full p-4 sm:p-5 border-2 border-emerald-500/50 space-y-3 text-center shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="text-sm sm:text-base font-black text-emerald-400 flex items-center gap-2">
+                    <i class="fa-solid fa-location-crosshairs"></i> Tap Ground to Mark Boundary
                 </h3>
                 <button onclick="app.confirmWagonZone('General')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p class="text-xs text-slate-300">Where did <span id="wagonBatterName" class="font-bold text-white"></span> hit this boundary?</p>
-            <div class="grid grid-cols-3 gap-2 pt-1">
-                <button onclick="app.confirmWagonZone('Third Man')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Third Man</button>
-                <button onclick="app.confirmWagonZone('Fine Leg')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Fine Leg</button>
-                <button onclick="app.confirmWagonZone('Square Leg')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Square Leg</button>
-                <button onclick="app.confirmWagonZone('Point')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Point</button>
-                <button onclick="app.confirmWagonZone('Straight Down Ground')" class="tap-btn py-3 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 text-xs font-black text-purple-300 border border-purple-500/50">Straight</button>
-                <button onclick="app.confirmWagonZone('Mid-Wicket')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Mid-Wicket</button>
-                <button onclick="app.confirmWagonZone('Cover')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Cover</button>
-                <button onclick="app.confirmWagonZone('Long Off')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Long Off</button>
-                <button onclick="app.confirmWagonZone('Long On')" class="tap-btn py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700">Long On</button>
+            <p class="text-xs text-slate-200">Tap anywhere on the ground where <span id="wagonBatterName" class="font-black text-amber-300"></span> hit this shot:</p>
+
+            <!-- Interactive Full 360° Stadium Ground SVG -->
+            <div class="relative flex justify-center py-1">
+                <svg id="interactiveWagonGroundSvg" onclick="app.onTapWagonGroundSvg(event)" viewBox="0 0 240 240" class="w-60 h-60 sm:w-64 sm:h-64 rounded-full cursor-crosshair select-none shadow-2xl border-4 border-emerald-500/60" style="background: radial-gradient(circle, #065f46 0%, #064e3b 55%, #022c22 100%);">
+                    <!-- Outfield Grass Mower Rings -->
+                    <circle cx="120" cy="120" r="108" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="5 4" opacity="0.75"/>
+                    <circle cx="120" cy="120" r="88" fill="none" stroke="#10b981" stroke-width="14" opacity="0.12"/>
+                    <circle cx="120" cy="120" r="64" fill="none" stroke="#a7f3d0" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.55"/>
+                    <circle cx="120" cy="120" r="36" fill="none" stroke="#10b981" stroke-width="10" opacity="0.12"/>
+                    <!-- 8 Sector Guide Lines -->
+                    <line x1="120" y1="12" x2="120" y2="228" stroke="#34d399" stroke-width="0.6" opacity="0.25"/>
+                    <line x1="12" y1="120" x2="228" y2="120" stroke="#34d399" stroke-width="0.6" opacity="0.25"/>
+                    <line x1="44" y1="44" x2="196" y2="196" stroke="#34d399" stroke-width="0.6" opacity="0.25"/>
+                    <line x1="196" y1="44" x2="44" y2="196" stroke="#34d399" stroke-width="0.6" opacity="0.25"/>
+                    <!-- Ground Zone Labels (Right-Hand Batter Perspective) -->
+                    <text x="120" y="26" text-anchor="middle" fill="#a7f3d0" font-size="7.5" font-weight="800" opacity="0.8">BEHIND WK</text>
+                    <text x="62" y="45" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">THIRD MAN</text>
+                    <text x="178" y="45" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">FINE LEG</text>
+                    <text x="32" y="118" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">POINT</text>
+                    <text x="204" y="118" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">SQ LEG</text>
+                    <text x="45" y="176" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">COVER</text>
+                    <text x="192" y="176" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">MID-WKT</text>
+                    <text x="76" y="214" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">LONG OFF</text>
+                    <text x="164" y="214" text-anchor="middle" fill="#e2e8f0" font-size="7.5" font-weight="700" opacity="0.85">LONG ON</text>
+                    <text x="120" y="225" text-anchor="middle" fill="#fde047" font-size="8" font-weight="900">STRAIGHT</text>
+                    <!-- Turf Pitch Strip & Crease Markings -->
+                    <rect x="113" y="94" width="14" height="52" rx="2" fill="#d97706" stroke="#fde68a" stroke-width="0.8"/>
+                    <line x1="114" y1="101" x2="126" y2="101" stroke="#ffffff" stroke-width="1"/>
+                    <line x1="114" y1="139" x2="126" y2="139" stroke="#ffffff" stroke-width="1"/>
+                    <!-- Striker Marker at Crease -->
+                    <circle cx="120" cy="103" r="3.5" fill="#fbbf24" stroke="#060911" stroke-width="1"/>
+                    <!-- Live Preview Shot Line When Tapped -->
+                    <g id="interactiveWagonPreviewGroup"></g>
+                </svg>
             </div>
-            <button onclick="app.confirmWagonZone('General')" class="text-xs text-slate-400 hover:text-white underline">Skip Zone Selection</button>
+
+            <div class="flex items-center justify-between gap-2 pt-1">
+                <span class="text-[10px] text-slate-400">Tap anywhere on turf to auto-record</span>
+                <button onclick="app.confirmWagonZone('General')" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700">Skip</button>
+            </div>
         </div>
     </div>
 
@@ -2108,7 +2139,9 @@
 
                 if ((runs === 4 || runs === 6) && (match.rules.wagonWheel !== false) && this.activeExtraMode !== 'WD' && this.activeExtraMode !== 'B' && this.activeExtraMode !== 'LB') {
                     this.pendingBoundaryRuns = runs;
-                    document.getElementById('wagonBatterName').textContent = inn.striker || 'Batter';
+                    document.getElementById('wagonBatterName').textContent = `${inn.striker || 'Batter'} (${runs === 6 ? '6 RUNS 🚀' : '4 RUNS ⚡'})`;
+                    const prevG = document.getElementById('interactiveWagonPreviewGroup');
+                    if (prevG) prevG.innerHTML = '';
                     document.getElementById('modal-wagon').classList.remove('hidden');
                     return;
                 }
@@ -2116,10 +2149,56 @@
                 this.executeDelivery(runs, 'General');
             }
 
-            confirmWagonZone(zone) {
+            onTapWagonGroundSvg(evt) {
+                const svg = document.getElementById('interactiveWagonGroundSvg');
+                if (!svg) return;
+                const rect = svg.getBoundingClientRect();
+                const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+                const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+                const svgX = ((clientX - rect.left) / rect.width) * 240;
+                const svgY = ((clientY - rect.top) / rect.height) * 240;
+
+                // Calculate angle from center of ground (120, 120) to classify the cricket zone automatically
+                const dx = svgX - 120;
+                const dy = svgY - 120;
+                const deg = (Math.atan2(dy, dx) * 180) / Math.PI; // -180 to 180 (90 is Straight down ground)
+
+                let zone = 'Straight Down Ground';
+                if (deg >= -115 && deg < -65) zone = 'Behind Wicket';
+                else if (deg >= -160 && deg < -115) zone = 'Third Man';
+                else if (deg >= -65 && deg < -20) zone = 'Fine Leg';
+                else if (deg >= -20 && deg < 25) zone = 'Square Leg';
+                else if (deg >= 25 && deg < 62) zone = 'Mid-Wicket';
+                else if (deg >= 62 && deg < 82) zone = 'Long On';
+                else if (deg >= 82 && deg <= 98) zone = 'Straight Down Ground';
+                else if (deg > 98 && deg < 120) zone = 'Long Off';
+                else if (deg >= 120 && deg < 160) zone = 'Cover';
+                else zone = 'Point';
+
+                // Convert from 240x240 interactive coordinates to 200x200 analytics wagon wheel coordinates
+                const normX = Math.max(14, Math.min(186, Math.round((svgX / 240) * 200)));
+                const normY = Math.max(14, Math.min(186, Math.round((svgY / 240) * 200)));
+
+                const runs = this.pendingBoundaryRuns || 4;
+                const strokeColor = runs === 6 ? '#c084fc' : '#34d399';
+                const prevG = document.getElementById('interactiveWagonPreviewGroup');
+                if (prevG) {
+                    prevG.innerHTML = `
+                        <line x1="120" y1="103" x2="${svgX.toFixed(1)}" y2="${svgY.toFixed(1)}" stroke="${strokeColor}" stroke-width="3.5" stroke-linecap="round"/>
+                        <circle cx="${svgX.toFixed(1)}" cy="${svgY.toFixed(1)}" r="6" fill="${strokeColor}" stroke="#ffffff" stroke-width="1.5"/>
+                    `;
+                }
+                if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback(20);
+                setTimeout(() => {
+                    this.confirmWagonZone(zone, normX, normY);
+                }, 160);
+            }
+
+            confirmWagonZone(zone, customX = null, customY = null) {
                 this.closeModal('modal-wagon');
                 const runs = this.pendingBoundaryRuns !== null && this.pendingBoundaryRuns !== undefined ? this.pendingBoundaryRuns : 4;
                 this.pendingBoundaryRuns = null;
+                this.pendingWagonCoords = (customX !== null && customY !== null) ? { x: customX, y: customY } : null;
                 this.executeDelivery(runs, zone);
             }
 
@@ -2175,11 +2254,13 @@
                         if (runs === 0) strikerStats.dots = (strikerStats.dots || 0) + 1;
                         if (runs === 4) {
                             strikerStats.fours += 1;
-                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 4 });
+                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 4, ...(this.pendingWagonCoords || {}) });
+                            this.pendingWagonCoords = null;
                         }
                         if (runs === 6) {
                             strikerStats.sixes += 1;
-                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 6 });
+                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 6, ...(this.pendingWagonCoords || {}) });
+                            this.pendingWagonCoords = null;
                         }
                     }
                 } else if (extra === 'B') {
@@ -2206,11 +2287,13 @@
                         if (runs === 0) strikerStats.dots = (strikerStats.dots || 0) + 1;
                         if (runs === 4) {
                             strikerStats.fours += 1;
-                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 4 });
+                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 4, ...(this.pendingWagonCoords || {}) });
+                            this.pendingWagonCoords = null;
                         }
                         if (runs === 6) {
                             strikerStats.sixes += 1;
-                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 6 });
+                            inn.wagonShots.push({ batter: inn.striker, zone: wagonZone || 'General', runs: 6, ...(this.pendingWagonCoords || {}) });
+                            this.pendingWagonCoords = null;
                         }
                     }
                     if (bowlerStats && runs === 0) {
@@ -3543,22 +3626,24 @@
 
                 return `
                     <div class="space-y-3">
-                        <div class="glass-card rounded-3xl p-3 sm:p-4 border border-slate-800 space-y-2 shadow-2xl relative overflow-hidden" style="border-top: 3px solid ${batTeamColor};">
-                            <div class="absolute -top-12 -left-12 w-44 h-44 rounded-full blur-3xl pointer-events-none opacity-20" style="background-color: ${batTeamColor};"></div>
-                            <div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-bold text-slate-300 pb-1.5 border-b border-slate-800/80 relative z-10">
+                        <!-- TOP LIVE BROADCAST SCOREBUG HUD (EXPANDED FRANCHISE GRADIENT COVER + BROADCAST PATTERN) -->
+                        <div class="glass-card broadcast-pattern rounded-3xl p-3 sm:p-4 border border-slate-700/80 space-y-2.5 shadow-2xl relative overflow-hidden" style="border-top: 4px solid ${batTeamColor}; background-image: linear-gradient(135deg, ${batTeamColor}38 0%, ${batTeamColor}14 48%, rgba(15, 23, 42, 0.96) 100%);">
+                            <div class="absolute -top-16 -left-12 w-72 h-56 rounded-full blur-3xl pointer-events-none opacity-30" style="background-color: ${batTeamColor};"></div>
+                            <div class="absolute -bottom-16 -right-12 w-60 h-48 rounded-full blur-3xl pointer-events-none opacity-15" style="background-color: ${batTeamColor};"></div>
+                            <div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-bold text-slate-200 pb-1.5 border-b border-white/10 relative z-10">
                                 <span class="uppercase tracking-wider flex items-center gap-1.5 text-emerald-300 break-words leading-snug">
-                                    <i class="fa-solid fa-satellite-dish text-emerald-400 animate-pulse shrink-0"></i>
-                                    <span>${match.seriesName || this.state.seriesName || 'Live Match'} • <span class="text-slate-400">${match.venue}</span></span>
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/25 border border-rose-500/50 text-[9px] font-black text-rose-300 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>LIVE</span>
+                                    <span>${match.seriesName || this.state.seriesName || 'Live Match'} • <span class="text-slate-300">${match.venue}</span></span>
                                 </span>
                                 ${match.innings.length >= 2 && match.innings[0] ? `
-                                    <span class="px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-700 text-[10px] text-slate-300 score-font shrink-0">
+                                    <span class="px-2 py-0.5 rounded-lg bg-slate-950/80 border border-slate-700 text-[10px] text-slate-200 score-font shrink-0">
                                         1st Inn: <strong class="text-white">${match.innings[0].battingTeamName} ${match.innings[0].runs}/${match.innings[0].wickets}</strong> (${this.formatOvers(match.innings[0].legalBalls)})
                                     </span>
                                 ` : ''}
                             </div>
 
                             ${match.status === 'completed' ? `
-                                <div class="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border-2 border-amber-400/60 text-center space-y-2">
+                                <div class="p-3 rounded-2xl bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-amber-500/20 border-2 border-amber-400/60 text-center space-y-2 relative z-10">
                                     <div class="text-[10px] font-black uppercase tracking-widest text-amber-300">🏆 Official Match Result</div>
                                     <h2 class="text-base sm:text-2xl font-black text-white">${match.resultText || 'Match Completed'}</h2>
                                     <div class="flex flex-wrap items-center justify-center gap-1.5 pt-1">
@@ -3571,41 +3656,40 @@
                                 </div>
                             ` : ''}
 
-                            <!-- Row 1: Score + Compact Target Pill on a single clean row -->
-                            <div class="flex flex-wrap items-center justify-between gap-1.5">
-                                <div class="flex items-baseline gap-2 flex-wrap">
-                                    <div class="inline-flex items-center gap-1.5 text-xs uppercase font-black tracking-wider text-slate-200">
-                                        <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${batTeamColor}"></span>
-                                        ${inn.battingTeamName}
+                            <!-- Row 1: Broadcast Scorebug Pill + Compact Target / Rate Pill -->
+                            <div class="flex flex-wrap items-center justify-between gap-2 relative z-10">
+                                <div class="flex items-center gap-2.5 flex-wrap">
+                                    <div class="px-3 py-1.5 rounded-2xl bg-slate-950/75 border border-white/15 shadow-inner flex items-baseline gap-2" style="border-left: 4px solid ${batTeamColor};">
+                                        <span class="text-xs sm:text-sm uppercase font-black tracking-wider text-white">${inn.battingTeamName}</span>
+                                        <h1 class="score-font text-2xl sm:text-4xl font-black text-white leading-none drop-shadow">${inn.runs}/${inn.wickets}</h1>
+                                        <span class="score-font text-xs sm:text-sm text-slate-300 font-bold">(${this.formatOvers(inn.legalBalls)}/${maxOversThisInnings})</span>
                                     </div>
-                                    <h1 class="score-font text-2xl sm:text-4xl font-black text-white leading-none">${inn.runs}/${inn.wickets}</h1>
-                                    <span class="score-font text-xs sm:text-base text-slate-300 font-bold">(${this.formatOvers(inn.legalBalls)}/${maxOversThisInnings} ov)</span>
-                                    <span class="text-[11px] text-slate-400">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong>${targetRuns ? ` • RRR: <strong class="text-amber-300 score-font">${rrrNum.toFixed(2)}</strong>` : ''}</span>
+                                    <span class="text-[11px] text-slate-200 font-semibold">CRR: <strong class="text-emerald-400 score-font">${crrNum.toFixed(2)}</strong>${targetRuns ? ` • RRR: <strong class="text-amber-300 score-font">${rrrNum.toFixed(2)}</strong>` : ''}</span>
                                 </div>
                                 ${targetRuns ? `
-                                    <div class="px-2.5 py-0.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-[11px] font-bold text-amber-300 score-font">
+                                    <div class="px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-400/50 text-[11px] font-bold text-amber-200 score-font shadow-sm">
                                         🎯 Need <strong class="text-white">${runsNeeded}</strong> off <strong class="text-white">${totalBallsRem}b</strong> (Target ${targetRuns})
                                     </div>
                                 ` : `
-                                    <div class="px-2.5 py-0.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 score-font">
+                                    <div class="px-2.5 py-1 rounded-xl bg-slate-950/75 border border-white/10 text-[11px] font-bold text-slate-200 score-font">
                                         ${hasMatchStarted ? `📈 Proj @CRR: <strong class="text-emerald-400">${projAtCrr}</strong> • @${tier2Rpo}: <strong class="text-amber-300">${projAtTier2}</strong>` : `⏳ Proj Score: <strong class="text-slate-400">0 (Awaiting 1st Ball)</strong>`}
                                     </div>
                                 `}
                             </div>
 
-                            <!-- Row 2: Compact 3-Box On-Field Strip (Striker | Non-Striker | Bowler with Over Progress Dots) -->
-                            <div class="grid grid-cols-3 gap-1.5 p-1.5 sm:p-2 rounded-2xl bg-slate-900/95 border border-slate-800 text-xs relative z-10">
-                                <div class="min-w-0 p-1 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                            <!-- Row 2: Compact 3-Box On-Field Strip with Neon Broadcast Left Accent Bars -->
+                            <div class="grid grid-cols-3 gap-1.5 p-1.5 sm:p-2 rounded-2xl bg-slate-950/85 border border-slate-800/90 text-xs relative z-10 shadow-inner">
+                                <div class="min-w-0 p-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 border-l-4 border-l-emerald-400">
                                     <span class="text-[10px] text-emerald-400 font-bold flex items-center justify-between"><span>🏏 Striker *</span><span class="scorer-only text-[9px] text-slate-400">⇄</span></span>
                                     <span class="font-black text-white truncate block">${inn.striker || '-'}</span>
                                     <span class="score-font text-emerald-300 font-bold whitespace-nowrap">${strikerObj ? `${strikerObj.runs} (${strikerObj.balls})` : '0 (0)'}</span>
                                 </div>
-                                <div class="min-w-0 p-1 rounded-xl">
+                                <div class="min-w-0 p-1.5 rounded-xl bg-slate-900/70 border border-slate-800">
                                     <span class="text-[10px] text-slate-400 font-bold flex items-center justify-between"><span>🏏 Non-Striker</span><span class="scorer-only text-[9px] text-slate-500">⇄</span></span>
                                     <span class="font-bold text-slate-200 truncate block">${inn.nonStriker || '-'}</span>
                                     <span class="score-font text-slate-400 whitespace-nowrap">${nonStrikerObj ? `${nonStrikerObj.runs} (${nonStrikerObj.balls})` : '0 (0)'}</span>
                                 </div>
-                                <div class="min-w-0 p-1 rounded-xl bg-sky-500/5 border border-sky-500/20">
+                                <div class="min-w-0 p-1.5 rounded-xl bg-sky-500/10 border border-sky-500/25 border-l-4 border-l-sky-400">
                                     <span class="text-[10px] text-sky-400 font-bold flex items-center justify-between"><span>⚾ Bowler</span><span class="scorer-only text-[9px] text-sky-400">↻</span></span>
                                     <span class="font-bold text-white truncate block">${inn.currentBowler || '-'}</span>
                                     <div class="flex items-center justify-between gap-1">
@@ -3947,12 +4031,27 @@
                                         </div>
                                     </div>
                                     <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 text-xs">
-                                        ${filteredBallLog.length === 0 ? `<p class="text-xs text-slate-500">No deliveries matching this filter yet...</p>` : filteredBallLog.slice(0, 25).map(b => `
-                                            <div class="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex items-center justify-between gap-2">
-                                                <span class="text-slate-200">${b.desc}</span>
-                                                <span class="score-font text-[11px] font-bold text-emerald-400 shrink-0">${b.over}</span>
-                                            </div>
-                                        `).join('')}
+                                        ${filteredBallLog.length === 0 ? `<p class="text-xs text-slate-500">No deliveries matching this filter yet...</p>` : filteredBallLog.slice(0, 25).map(b => {
+                                            const lbl = String(b.label || '0').toUpperCase();
+                                            const isWkt = b.isWicket || (lbl.includes('W') && !lbl.includes('WD'));
+                                            const isSix = lbl.includes('6');
+                                            const isFour = lbl.includes('4') && !lbl.includes('WD');
+                                            const isExtra = lbl.includes('WD') || lbl.includes('NB') || lbl.includes('B');
+                                            const pillCls = isWkt ? 'bg-gradient-to-br from-rose-500 to-red-700 text-white border-rose-400' :
+                                                (isSix ? 'bg-gradient-to-br from-purple-500 to-indigo-700 text-white border-purple-400' :
+                                                (isFour ? 'bg-gradient-to-br from-emerald-500 to-teal-700 text-white border-emerald-400' :
+                                                (isExtra ? 'bg-amber-500/25 text-amber-300 border-amber-500/50' : 'bg-slate-800 text-slate-300 border-slate-700')));
+                                            const rowTint = isWkt ? 'bg-rose-950/25 border-rose-500/30' : (isSix ? 'bg-purple-950/20 border-purple-500/25' : (isFour ? 'bg-emerald-950/20 border-emerald-500/25' : 'bg-slate-900/60 border-slate-800/80'));
+                                            return `
+                                                <div class="p-2 rounded-xl border ${rowTint} flex items-center justify-between gap-2.5">
+                                                    <div class="flex items-center gap-2.5 min-w-0">
+                                                        <span class="px-1.5 h-6 min-w-[26px] rounded-full flex items-center justify-center font-black text-[10px] score-font border shrink-0 ${pillCls}">${b.label || '•'}</span>
+                                                        <span class="text-slate-200 truncate sm:whitespace-normal">${b.desc}</span>
+                                                    </div>
+                                                    <span class="score-font text-[11px] font-bold text-emerald-400 shrink-0">${b.over}</span>
+                                                </div>
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -4265,7 +4364,7 @@
                 });
 
                 const zoneAngles = {
-                    'Third Man': -135, 'Fine Leg': -45, 'Square Leg': 15,
+                    'Behind Wicket': -90, 'Third Man': -135, 'Fine Leg': -45, 'Square Leg': 15,
                     'Mid-Wicket': 45, 'Long On': 75, 'Straight Down Ground': 90,
                     'Long Off': 110, 'Cover': 145, 'Point': -165, 'General': 60
                 };
@@ -4273,14 +4372,20 @@
                 const linesGroup = document.getElementById('wagonWheelLinesGroup');
                 if (linesGroup) {
                     linesGroup.innerHTML = filtered.map((s, idx) => {
-                        const baseDeg = zoneAngles[s.zone] !== undefined ? zoneAngles[s.zone] : 60;
-                        const jitter = ((idx * 13) % 16) - 8;
-                        const rad = ((baseDeg + jitter) * Math.PI) / 180;
-                        const dist = s.runs === 6 ? 86 : 72;
-                        const x2 = (100 + Math.cos(rad) * dist).toFixed(1);
-                        const y2 = (100 + Math.sin(rad) * dist).toFixed(1);
+                        let x2, y2;
+                        if (s.x !== undefined && s.y !== undefined) {
+                            x2 = Number(s.x).toFixed(1);
+                            y2 = Number(s.y).toFixed(1);
+                        } else {
+                            const baseDeg = zoneAngles[s.zone] !== undefined ? zoneAngles[s.zone] : 60;
+                            const jitter = ((idx * 13) % 16) - 8;
+                            const rad = ((baseDeg + jitter) * Math.PI) / 180;
+                            const dist = s.runs === 6 ? 86 : 72;
+                            x2 = (100 + Math.cos(rad) * dist).toFixed(1);
+                            y2 = (100 + Math.sin(rad) * dist).toFixed(1);
+                        }
                         const stroke = s.runs === 6 ? '#c084fc' : '#34d399';
-                        return `<line x1="100" y1="100" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="3" fill="${stroke}"/>`;
+                        return `<line x1="100" y1="100" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="3.5" fill="${stroke}" stroke="#ffffff" stroke-width="0.8"/>`;
                     }).join('');
                 }
 
