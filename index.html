@@ -22,9 +22,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #060911; background-image: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.11), transparent 60%); color: #f8fafc; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #060911; background-image: radial-gradient(ellipse at top, rgba(16, 185, 129, 0.14), transparent 62%); color: #f8fafc; overflow-x: hidden; }
         .score-font { font-family: 'JetBrains Mono', monospace; }
-        .glass-card { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(51, 65, 85, 0.55); box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.55); }
+        .glass-card { background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(16px); border: 1px solid rgba(51, 65, 85, 0.55); border-top: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.65); }
         .glass-header { background: rgba(6, 9, 17, 0.92); backdrop-filter: blur(16px); }
         .tap-btn { transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1); user-select: none; }
         .tap-btn:active { transform: scale(0.93); }
@@ -34,7 +34,6 @@
         .tv-pop-anim { animation: tvPopSpring 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         .tv-timer-anim { animation: tvTimerBar 3.2s linear forwards; }
         .tv-shimmer-sweep::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); animation: broadcastSweep 2.4s infinite; pointer-events: none; }
-        .broadcast-pattern { background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px); background-size: 14px 14px; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #060911; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -2158,10 +2157,11 @@
                 const svgX = ((clientX - rect.left) / rect.width) * 240;
                 const svgY = ((clientY - rect.top) / rect.height) * 240;
 
-                // Calculate angle from center of ground (120, 120) to classify the cricket zone automatically
+                // Calculate shot direction angle from batter's crease (120, 103) and center (120, 120)
                 const dx = svgX - 120;
                 const dy = svgY - 120;
-                const deg = (Math.atan2(dy, dx) * 180) / Math.PI; // -180 to 180 (90 is Straight down ground)
+                const rad = Math.atan2(dy, dx);
+                const deg = (rad * 180) / Math.PI; // -180 to 180 (90 is Straight down ground)
 
                 let zone = 'Straight Down Ground';
                 if (deg >= -115 && deg < -65) zone = 'Behind Wicket';
@@ -2175,23 +2175,33 @@
                 else if (deg >= 120 && deg < 160) zone = 'Cover';
                 else zone = 'Point';
 
-                // Convert from 240x240 interactive coordinates to 200x200 analytics wagon wheel coordinates
-                const normX = Math.max(14, Math.min(186, Math.round((svgX / 240) * 200)));
-                const normY = Math.max(14, Math.min(186, Math.round((svgY / 240) * 200)));
-
                 const runs = this.pendingBoundaryRuns || 4;
+                // Auto-snap 4s to the Boundary Rope (r=106) and 6s past the rope into the Stands (r=115) along the exact direction tapped!
+                const snapRadius240 = runs === 6 ? 114 : 105;
+                const boundX = 120 + Math.cos(rad) * snapRadius240;
+                const boundY = 120 + Math.sin(rad) * snapRadius240;
+
+                // Convert snapped boundary coordinates to 200x200 analytics wagon wheel coordinates (r=86 for 4s, r=94 for 6s)
+                const snapRadius200 = runs === 6 ? 94 : 85;
+                const normX = Math.round(100 + Math.cos(rad) * snapRadius200);
+                const normY = Math.round(100 + Math.sin(rad) * snapRadius200);
+
                 const strokeColor = runs === 6 ? '#c084fc' : '#34d399';
                 const prevG = document.getElementById('interactiveWagonPreviewGroup');
                 if (prevG) {
-                    prevG.innerHTML = `
-                        <line x1="120" y1="103" x2="${svgX.toFixed(1)}" y2="${svgY.toFixed(1)}" stroke="${strokeColor}" stroke-width="3.5" stroke-linecap="round"/>
-                        <circle cx="${svgX.toFixed(1)}" cy="${svgY.toFixed(1)}" r="6" fill="${strokeColor}" stroke="#ffffff" stroke-width="1.5"/>
+                    prevG.innerHTML = runs === 6 ? `
+                        <line x1="120" y1="103" x2="${boundX.toFixed(1)}" y2="${boundY.toFixed(1)}" stroke="#e879f9" stroke-width="4" stroke-dasharray="5 3" stroke-linecap="round"/>
+                        <circle cx="${boundX.toFixed(1)}" cy="${boundY.toFixed(1)}" r="10" fill="none" stroke="#f0abfc" stroke-width="1.8" opacity="0.8"/>
+                        <circle cx="${boundX.toFixed(1)}" cy="${boundY.toFixed(1)}" r="5.5" fill="#c084fc" stroke="#ffffff" stroke-width="1.5"/>
+                    ` : `
+                        <line x1="120" y1="103" x2="${boundX.toFixed(1)}" y2="${boundY.toFixed(1)}" stroke="${strokeColor}" stroke-width="3.5" stroke-linecap="round"/>
+                        <circle cx="${boundX.toFixed(1)}" cy="${boundY.toFixed(1)}" r="5.5" fill="${strokeColor}" stroke="#ffffff" stroke-width="1.5"/>
                     `;
                 }
                 if (typeof triggerHapticFeedback === 'function') triggerHapticFeedback(20);
                 setTimeout(() => {
                     this.confirmWagonZone(zone, normX, normY);
-                }, 160);
+                }, 170);
             }
 
             confirmWagonZone(zone, customX = null, customY = null) {
@@ -3274,15 +3284,15 @@
                                     </span>
                                 </div>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                                    <div class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
-                                        <div>
-                                            <span class="w-3 h-3 rounded-full inline-block mr-1" style="background-color:${match.teamA.color}"></span>
-                                            <h3 class="text-base font-black text-white inline">${match.teamA.name}</h3>
+                                    <div class="flex items-center justify-between gap-3 p-4 rounded-2xl border border-slate-700/80 shadow-inner relative overflow-hidden" style="background: linear-gradient(90deg, ${match.teamA.color || '#10b981'}30 0%, rgba(15,23,42,0.92) 50%, ${match.teamB.color || '#38bdf8'}30 100%);">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm border border-white/30" style="background-color:${match.teamA.color}"></span>
+                                            <h3 class="text-sm sm:text-base font-black text-white truncate">${match.teamA.name}</h3>
                                         </div>
-                                        <div class="text-sm font-black text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10">VS</div>
-                                        <div class="text-right">
-                                            <h3 class="text-base font-black text-white inline">${match.teamB.name}</h3>
-                                            <span class="w-3 h-3 rounded-full inline-block ml-1" style="background-color:${match.teamB.color}"></span>
+                                        <div class="text-xs font-black text-amber-300 px-2.5 py-1 rounded-xl bg-slate-950/90 border border-amber-400/40 shadow-md shrink-0">VS</div>
+                                        <div class="flex items-center justify-end gap-2 min-w-0 text-right">
+                                            <h3 class="text-sm sm:text-base font-black text-white truncate">${match.teamB.name}</h3>
+                                            <span class="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm border border-white/30" style="background-color:${match.teamB.color}"></span>
                                         </div>
                                     </div>
                                     <div class="text-xs text-slate-300 space-y-1">
@@ -3434,25 +3444,25 @@
 
                 return `
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                        <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                            <span class="font-extrabold text-amber-400 block">🧢 Orange Cap (Top Run Scorers)</span>
+                        <div class="p-3.5 rounded-2xl border border-amber-500/35 space-y-2 shadow-lg" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.14) 0%, rgba(15, 23, 42, 0.92) 65%);">
+                            <span class="font-black text-amber-400 flex items-center justify-between"><span>🧢 Orange Cap (Top Run Scorers)</span><i class="fa-solid fa-fire text-amber-400"></i></span>
                             ${topBatters.length === 0 ? `<span class="text-slate-500">No runs scored yet</span>` : topBatters.map((b, i) => {
                                 const sr = b.balls > 0 ? ((b.runs / b.balls) * 100).toFixed(1) : '0.0';
                                 return `
-                                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/60">
-                                    <span class="font-bold text-white">${i + 1}. ${b.name} <span class="text-[10px] text-slate-400 font-normal">(HS ${b.hs})</span></span>
+                                <div onclick="app.openPlayerProfileModal('${b.name.replace(/'/g, "\\'")}')" class="cursor-pointer flex items-center justify-between p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800">
+                                    <span class="font-bold text-white"><span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px] mr-1">#${i + 1}</span>${b.name} <span class="text-[10px] text-slate-400 font-normal">(HS ${b.hs})</span></span>
                                     <span class="score-font text-amber-300 font-extrabold">${b.runs} R <span class="text-[10px] text-emerald-400 font-normal">SR ${sr}</span></span>
                                 </div>
                             `;
                             }).join('')}
                         </div>
-                        <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                            <span class="font-extrabold text-purple-400 block">🧢 Purple Cap (Top Wicket Takers)</span>
+                        <div class="p-3.5 rounded-2xl border border-purple-500/35 space-y-2 shadow-lg" style="background: linear-gradient(145deg, rgba(168, 85, 247, 0.14) 0%, rgba(15, 23, 42, 0.92) 65%);">
+                            <span class="font-black text-purple-300 flex items-center justify-between"><span>🧢 Purple Cap (Top Wicket Takers)</span><i class="fa-solid fa-baseball text-purple-400"></i></span>
                             ${topBowlers.length === 0 ? `<span class="text-slate-500">No wickets taken yet</span>` : topBowlers.map((bw, i) => {
                                 const econ = bw.balls > 0 ? ((bw.runs / bw.balls) * 6).toFixed(2) : '0.00';
                                 return `
-                                <div class="flex items-center justify-between p-2 rounded-xl bg-slate-800/60">
-                                    <span class="font-bold text-white">${i + 1}. ${bw.name}</span>
+                                <div onclick="app.openPlayerProfileModal('${bw.name.replace(/'/g, "\\'")}')" class="cursor-pointer flex items-center justify-between p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800">
+                                    <span class="font-bold text-white"><span class="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono text-[10px] mr-1">#${i + 1}</span>${bw.name}</span>
                                     <span class="score-font text-purple-300 font-extrabold">${bw.wickets} W (${bw.runs}R) <span class="text-[10px] text-sky-400 font-normal">Ec ${econ}</span></span>
                                 </div>
                             `;
@@ -3626,10 +3636,10 @@
 
                 return `
                     <div class="space-y-3">
-                        <!-- TOP LIVE BROADCAST SCOREBUG HUD (EXPANDED FRANCHISE GRADIENT COVER + BROADCAST PATTERN) -->
-                        <div class="glass-card broadcast-pattern rounded-3xl p-3 sm:p-4 border border-slate-700/80 space-y-2.5 shadow-2xl relative overflow-hidden" style="border-top: 4px solid ${batTeamColor}; background-image: linear-gradient(135deg, ${batTeamColor}38 0%, ${batTeamColor}14 48%, rgba(15, 23, 42, 0.96) 100%);">
-                            <div class="absolute -top-16 -left-12 w-72 h-56 rounded-full blur-3xl pointer-events-none opacity-30" style="background-color: ${batTeamColor};"></div>
-                            <div class="absolute -bottom-16 -right-12 w-60 h-48 rounded-full blur-3xl pointer-events-none opacity-15" style="background-color: ${batTeamColor};"></div>
+                        <!-- TOP LIVE BROADCAST SCOREBUG HUD (SMOOTH DEEP FRANCHISE GRADIENT WASH — ZERO PATTERNS) -->
+                        <div class="glass-card rounded-3xl p-3 sm:p-4 border border-slate-700/80 space-y-2.5 shadow-2xl relative overflow-hidden" style="border-top: 4px solid ${batTeamColor}; background: linear-gradient(135deg, ${batTeamColor}58 0%, ${batTeamColor}28 52%, rgba(15, 23, 42, 0.96) 100%); box-shadow: inset 0 1px 1px rgba(255,255,255,0.22), 0 16px 36px -8px rgba(0,0,0,0.7);">
+                            <div class="absolute -top-20 -left-14 w-80 h-64 rounded-full blur-3xl pointer-events-none opacity-35" style="background-color: ${batTeamColor};"></div>
+                            <div class="absolute -bottom-16 -right-12 w-64 h-52 rounded-full blur-3xl pointer-events-none opacity-20" style="background-color: ${batTeamColor};"></div>
                             <div class="flex flex-wrap items-center justify-between gap-1.5 text-[11px] font-bold text-slate-200 pb-1.5 border-b border-white/10 relative z-10">
                                 <span class="uppercase tracking-wider flex items-center gap-1.5 text-emerald-300 break-words leading-snug">
                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/25 border border-rose-500/50 text-[9px] font-black text-rose-300 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>LIVE</span>
@@ -4037,12 +4047,22 @@
                                             const isSix = lbl.includes('6');
                                             const isFour = lbl.includes('4') && !lbl.includes('WD');
                                             const isExtra = lbl.includes('WD') || lbl.includes('NB') || lbl.includes('B');
+                                            const isEndOfOverBall = String(b.over || '').endsWith('.0') && !isExtra;
+                                            const overNumFinished = isEndOfOverBall ? parseInt(String(b.over).split('.')[0], 10) : null;
+                                            const ovHistObj = overNumFinished ? (commInn.oversHistory || []).find(o => o.overNum === overNumFinished) : null;
+                                            const overDividerHtml = ovHistObj ? `
+                                                <div class="px-3 py-1 rounded-xl bg-gradient-to-r from-emerald-500/20 via-slate-900 to-sky-500/20 border border-emerald-500/35 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-emerald-300 my-1">
+                                                    <span>🏁 End of Over ${ovHistObj.overNum} (${ovHistObj.bowler})</span>
+                                                    <span class="score-font text-white">${ovHistObj.overRuns ?? 0} Runs • ${commInn.battingTeamName} ${ovHistObj.runs}/${ovHistObj.wickets}</span>
+                                                </div>
+                                            ` : '';
                                             const pillCls = isWkt ? 'bg-gradient-to-br from-rose-500 to-red-700 text-white border-rose-400' :
                                                 (isSix ? 'bg-gradient-to-br from-purple-500 to-indigo-700 text-white border-purple-400' :
                                                 (isFour ? 'bg-gradient-to-br from-emerald-500 to-teal-700 text-white border-emerald-400' :
                                                 (isExtra ? 'bg-amber-500/25 text-amber-300 border-amber-500/50' : 'bg-slate-800 text-slate-300 border-slate-700')));
                                             const rowTint = isWkt ? 'bg-rose-950/25 border-rose-500/30' : (isSix ? 'bg-purple-950/20 border-purple-500/25' : (isFour ? 'bg-emerald-950/20 border-emerald-500/25' : 'bg-slate-900/60 border-slate-800/80'));
                                             return `
+                                                ${overDividerHtml}
                                                 <div class="p-2 rounded-xl border ${rowTint} flex items-center justify-between gap-2.5">
                                                     <div class="flex items-center gap-2.5 min-w-0">
                                                         <span class="px-1.5 h-6 min-w-[26px] rounded-full flex items-center justify-center font-black text-[10px] score-font border shrink-0 ${pillCls}">${b.label || '•'}</span>
@@ -4098,11 +4118,12 @@
                     const batters = this.getSortedBattersForScorecard(inn);
                     const bowlers = inn.bowlingRoster.map(p => inn.bowlStats[p]).filter(b => b && b.balls > 0);
                     const maxOv = inn.isSuperOverInnings ? 1 : match.totalOvers;
+                    const innTeamColor = inn.battingTeamKey === 'A' ? (match.teamA.color || '#10b981') : (match.teamB.color || '#38bdf8');
                     return `
-                        <div class="glass-card rounded-3xl p-4 sm:p-5 space-y-4 border border-slate-800">
-                            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
-                                <h3 class="text-base font-black text-white">${inn.battingTeamName} — <span class="text-emerald-400">${inn.runs}/${inn.wickets}</span> <span class="text-xs text-slate-400 font-normal">(${this.formatOvers(inn.legalBalls)} / ${maxOv} Overs)</span></h3>
-                                <span class="text-xs text-slate-400">Extras: <strong class="text-white">${inn.extras.total}</strong> (WD ${inn.extras.wd}, NB ${inn.extras.nb}, B ${inn.extras.b}, LB ${inn.extras.lb})</span>
+                        <div class="glass-card rounded-3xl p-4 sm:p-5 space-y-4 border border-slate-800" style="border-top: 3px solid ${innTeamColor};">
+                            <div class="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl border border-white/10" style="background: linear-gradient(90deg, ${innTeamColor}35 0%, rgba(15,23,42,0.9) 85%);">
+                                <h3 class="text-base font-black text-white">${inn.battingTeamName} — <span class="text-emerald-400 score-font">${inn.runs}/${inn.wickets}</span> <span class="text-xs text-slate-300 font-normal">(${this.formatOvers(inn.legalBalls)} / ${maxOv} Overs)</span></h3>
+                                <span class="text-xs text-slate-300">Extras: <strong class="text-white">${inn.extras.total}</strong> (WD ${inn.extras.wd}, NB ${inn.extras.nb}, B ${inn.extras.b}, LB ${inn.extras.lb})</span>
                             </div>
                             <!-- Mobile-Responsive Non-Overlapping Batting Table (Dismissal neatly stacked under batter name) -->
                             <div class="overflow-x-auto">
@@ -4296,10 +4317,14 @@
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                                     <div class="flex justify-center">
-                                        <svg viewBox="0 0 200 200" class="w-48 h-48 rounded-full bg-emerald-950/60 border-2 border-emerald-500/40 shadow-inner">
-                                            <circle cx="100" cy="100" r="88" fill="none" stroke="#10b981" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
-                                            <circle cx="100" cy="100" r="52" fill="none" stroke="#34d399" stroke-width="1" stroke-dasharray="2 2" opacity="0.35"/>
-                                            <rect x="94" y="78" width="12" height="44" rx="2" fill="#d97706" opacity="0.65"/>
+                                        <svg viewBox="0 0 200 200" class="w-52 h-52 rounded-full border-4 border-emerald-500/50 shadow-2xl" style="background: radial-gradient(circle, #065f46 0%, #064e3b 58%, #022c22 100%);">
+                                            <circle cx="100" cy="100" r="88" fill="none" stroke="#34d399" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>
+                                            <circle cx="100" cy="100" r="68" fill="none" stroke="#10b981" stroke-width="10" opacity="0.12"/>
+                                            <circle cx="100" cy="100" r="52" fill="none" stroke="#a7f3d0" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+                                            <line x1="100" y1="12" x2="100" y2="188" stroke="#34d399" stroke-width="0.5" opacity="0.25"/>
+                                            <line x1="12" y1="100" x2="188" y2="100" stroke="#34d399" stroke-width="0.5" opacity="0.25"/>
+                                            <rect x="94" y="78" width="12" height="44" rx="2" fill="#d97706" stroke="#fde68a" stroke-width="0.7"/>
+                                            <circle cx="100" cy="86" r="2.5" fill="#fbbf24"/>
                                             <g id="wagonWheelLinesGroup"></g>
                                         </svg>
                                     </div>
@@ -4374,18 +4399,23 @@
                     linesGroup.innerHTML = filtered.map((s, idx) => {
                         let x2, y2;
                         if (s.x !== undefined && s.y !== undefined) {
-                            x2 = Number(s.x).toFixed(1);
-                            y2 = Number(s.y).toFixed(1);
+                            // Project any recorded coordinate cleanly to the boundary rope (r=85 for 4, r=94 for 6)
+                            const ang = Math.atan2(Number(s.y) - 100, Number(s.x) - 100);
+                            const r = s.runs === 6 ? 93 : 85;
+                            x2 = (100 + Math.cos(ang) * r).toFixed(1);
+                            y2 = (100 + Math.sin(ang) * r).toFixed(1);
                         } else {
                             const baseDeg = zoneAngles[s.zone] !== undefined ? zoneAngles[s.zone] : 60;
                             const jitter = ((idx * 13) % 16) - 8;
                             const rad = ((baseDeg + jitter) * Math.PI) / 180;
-                            const dist = s.runs === 6 ? 86 : 72;
+                            const dist = s.runs === 6 ? 93 : 85;
                             x2 = (100 + Math.cos(rad) * dist).toFixed(1);
                             y2 = (100 + Math.sin(rad) * dist).toFixed(1);
                         }
-                        const stroke = s.runs === 6 ? '#c084fc' : '#34d399';
-                        return `<line x1="100" y1="100" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="3.5" fill="${stroke}" stroke="#ffffff" stroke-width="0.8"/>`;
+                        if (s.runs === 6) {
+                            return `<line x1="100" y1="86" x2="${x2}" y2="${y2}" stroke="#e879f9" stroke-width="2.8" stroke-dasharray="4 2" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="6" fill="none" stroke="#f0abfc" stroke-width="1.2" opacity="0.8"/><circle cx="${x2}" cy="${y2}" r="3.5" fill="#c084fc" stroke="#ffffff" stroke-width="0.9"/>`;
+                        }
+                        return `<line x1="100" y1="86" x2="${x2}" y2="${y2}" stroke="#34d399" stroke-width="2.4" stroke-linecap="round"/><circle cx="${x2}" cy="${y2}" r="3.2" fill="#34d399" stroke="#ffffff" stroke-width="0.8"/>`;
                     }).join('');
                 }
 
@@ -4533,8 +4563,8 @@
                 if (ratingsContainer) {
                     const badges = ['👑 Match MVP', '🔥 Top Impact', '🎯 Star Performer', '⚡ Game Changer'];
                     ratingsContainer.innerHTML = ratings.slice(0, 4).map((p, idx) => `
-                        <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-                            <div class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase inline-block">${badges[idx] || '⭐ Top Player'}</div>
+                        <div onclick="app.openPlayerProfileModal('${p.name.replace(/'/g, "\\'")}')" class="cursor-pointer p-4 rounded-2xl border ${idx === 0 ? 'border-amber-400/60' : 'border-slate-700/80'} space-y-2 shadow-lg hover:scale-[1.01] transition-transform" style="background: ${idx === 0 ? 'linear-gradient(145deg, rgba(245, 158, 11, 0.18) 0%, rgba(15, 23, 42, 0.94) 70%)' : 'linear-gradient(145deg, rgba(56, 189, 248, 0.10) 0%, rgba(15, 23, 42, 0.92) 70%)'};">
+                            <div class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase inline-block border border-amber-500/30">${badges[idx] || '⭐ Top Player'}</div>
                             <h4 class="font-bold text-white text-sm">${p.name} <span class="text-[10px] text-slate-400 font-normal">(${p.teamName})</span></h4>
                             <div class="flex items-baseline justify-between text-xs">
                                 <span class="text-slate-400">Rating</span>
@@ -4848,17 +4878,17 @@
             if (!match) return '';
 
             return `
-                <div class="glass-card rounded-2xl p-1 grid grid-cols-4 gap-1 border border-slate-800 shadow-lg text-[11px] sm:text-xs">
-                    <button onclick="app.navigate('match')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                <div class="glass-card rounded-2xl p-1 grid grid-cols-4 gap-1 border border-slate-700/80 shadow-xl text-[11px] sm:text-xs">
+                    <button onclick="app.navigate('match')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'match' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 border border-emerald-300/30' : 'text-slate-300 hover:bg-slate-800/80'}">
                         <i class="fa-solid fa-satellite-dish"></i> <span>Live</span><span class="hidden sm:inline"> Match</span>
                     </button>
-                    <button onclick="app.navigate('scorecard')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                    <button onclick="app.navigate('scorecard')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'scorecard' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 border border-emerald-300/30' : 'text-slate-300 hover:bg-slate-800/80'}">
                         <i class="fa-solid fa-table-list"></i> <span>Card</span><span class="hidden sm:inline"> / Full</span>
                     </button>
-                    <button onclick="app.navigate('analytics')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                    <button onclick="app.navigate('analytics')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'analytics' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 border border-emerald-300/30' : 'text-slate-300 hover:bg-slate-800/80'}">
                         <i class="fa-solid fa-chart-line"></i> <span>Stats</span><span class="hidden sm:inline"> &amp; MVP</span>
                     </button>
-                    <button onclick="app.navigate('hub')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-slate-300 hover:bg-slate-800'}">
+                    <button onclick="app.navigate('hub')" class="py-2 px-1 rounded-xl font-black flex items-center justify-center gap-1.5 whitespace-nowrap transition-all ${activeView === 'hub' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 border border-emerald-300/30' : 'text-slate-300 hover:bg-slate-800/80'}">
                         <i class="fa-solid fa-trophy"></i> <span>Hub</span><span class="hidden sm:inline"> / Series</span>
                     </button>
                 </div>
