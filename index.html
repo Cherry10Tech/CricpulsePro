@@ -5286,5 +5286,521 @@
         }
     })();
     </script>
+
+<!-- CRICPULSE PRO 10/10 UPGRADE PART 4: FINAL 19-POINT MASTER BROADCAST & FUNCTIONAL SUITE -->
+<script>
+(function() {
+    function attachCricPulseMaster19Suite() {
+        if (!window.app || !window.app._upgradedPart3Final) {
+            setTimeout(attachCricPulseMaster19Suite, 80);
+            return;
+        }
+        const app = window.app;
+        if (app._upgradedMaster19Suite) return;
+        app._upgradedMaster19Suite = true;
+
+        app.expandedScorecardOvers = {};
+
+        // #18: Add 1-Tap "🦆 Test Duck Quack" Button next to "Test IPL Trumpet" in Footer
+        const footerTrumpetBtn = document.querySelector('footer button[onclick*="playIPLTrumpetFanfare"]');
+        if (footerTrumpetBtn && !document.getElementById('btnFooterTestDuck')) {
+            const duckBtn = document.createElement('button');
+            duckBtn.id = 'btnFooterTestDuck';
+            duckBtn.className = 'scorer-only inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold transition-all';
+            duckBtn.innerHTML = '🦆 Test Duck Quack';
+            duckBtn.onclick = () => app.playDuckQuackSound(true);
+            footerTrumpetBtn.insertAdjacentElement('afterend', duckBtn);
+        }
+
+        // #1: Preserve Mid-Match Squad Edits & Colors When Starting Match 2+ of a Series
+        app.startNextSeriesMatch = function() {
+            if (!this.isCreatorAuthorized) {
+                document.getElementById('modal-auth').classList.remove('hidden');
+                return;
+            }
+            const prevMatch = this.getActiveMatch();
+            if (!prevMatch) return;
+            this.startingSubsequentSeriesMatch = true;
+            document.getElementById('setupTeamAName').value = prevMatch.teamA.name;
+            document.getElementById('setupTeamBName').value = prevMatch.teamB.name;
+            document.getElementById('setupTeamAColor').value = prevMatch.teamA.color || '#10b981';
+            document.getElementById('setupTeamBColor').value = prevMatch.teamB.color || '#38bdf8';
+            document.getElementById('setupTeamAPlayers').value = (prevMatch.teamA.players || []).join(', ');
+            document.getElementById('setupTeamBPlayers').value = (prevMatch.teamB.players || []).join(', ');
+            document.getElementById('setupScorerPin').value = prevMatch.scorerPin || '7788';
+            this.updateSetupTeamDropdowns();
+            document.getElementById('modal-toss').classList.remove('hidden');
+        };
+
+        // #2: Prevent Wagon Wheel Popup on NB+Bye ('NBB') Boundaries
+        const origRecordDelivery = app.recordDelivery.bind(app);
+        app.recordDelivery = function(runs) {
+            if (this.activeExtraMode === 'NBB') {
+                this.executeDelivery(runs, 'General');
+                return;
+            }
+            origRecordDelivery(runs);
+        };
+
+        // #5: Reset lastMatchWinSignature on undoLastBall() so re-won matches celebrate properly
+        const origUndoLastBall = app.undoLastBall.bind(app);
+        app.undoLastBall = function() {
+            this.lastMatchWinSignature = null;
+            this.lastAnimatedBallSig = null;
+            origUndoLastBall();
+        };
+
+        // #10: Tag Returning "Retired Hurt" Batters in Wicket Modal + Allow Returning via Retire Modal
+        const origOpenWicketModal = app.openWicketModal.bind(app);
+        app.openWicketModal = function() {
+            origOpenWicketModal();
+            const inn = this.getActiveInnings();
+            const nextSel = document.getElementById('wicketNextBatterSelect');
+            if (!inn || !nextSel) return;
+            Array.from(nextSel.options).forEach(opt => {
+                const st = inn.batStats[opt.value];
+                if (st && st.status === 'retired') {
+                    opt.textContent = `🔄 ${opt.value} (Return from Retired Hurt — ${st.runs}* off ${st.balls}b)`;
+                }
+            });
+        };
+
+        const origOpenRetireModal = app.openRetireModal.bind(app);
+        app.openRetireModal = function() {
+            origOpenRetireModal();
+            const inn = this.getActiveInnings();
+            const repSel = document.getElementById('retireReplacementSelect');
+            if (!inn || !repSel) return;
+            const activeBatters = [inn.striker, inn.nonStriker].filter(Boolean);
+            const avail = inn.battingRoster.filter(p => (inn.batStats[p]?.status === 'dnb' || inn.batStats[p]?.status === 'retired') && !activeBatters.includes(p));
+            if (avail.length > 0) {
+                repSel.innerHTML = avail.map(p => {
+                    const st = inn.batStats[p];
+                    const tag = st?.status === 'retired' ? ` (🔄 Return from Retired Hurt - ${st.runs}* off ${st.balls}b)` : '';
+                    return `<option value="${p}">${p}${tag}</option>`;
+                }).join('');
+            }
+        };
+
+        // #11 & #16: Smart Pre-Select Tandem Bowler (2 Overs Ago) + Mid-Over Reassign Option
+        const origOpenBowlerModal = app.openBowlerModal.bind(app);
+        app.openBowlerModal = function() {
+            origOpenBowlerModal();
+            const match = this.getActiveMatch();
+            const inn = this.getActiveInnings();
+            const sel = document.getElementById('nextBowlerSelect');
+            if (!match || !inn || !sel) return;
+
+            const isNewOverStart = inn.legalBalls > 0 && inn.legalBalls % 6 === 0;
+            const hist = inn.oversHistory || [];
+            const tandemBowler = (isNewOverStart && hist.length >= 2) ? hist[hist.length - 2].bowler : null;
+
+            Array.from(sel.options).forEach(opt => {
+                if (tandemBowler && opt.value === tandemBowler && !opt.disabled) {
+                    opt.textContent = `⚡ ${opt.textContent} [Tandem End]`;
+                }
+            });
+            if (tandemBowler) {
+                const tandemOpt = Array.from(sel.options).find(o => o.value === tandemBowler && !o.disabled);
+                if (tandemOpt) sel.value = tandemBowler;
+            }
+
+            // #16: Mid-Over Bowler Reassign Checkbox (if mid-over)
+            let reassignWrap = document.getElementById('midOverReassignWrap');
+            if (!reassignWrap) {
+                reassignWrap = document.createElement('div');
+                reassignWrap.id = 'midOverReassignWrap';
+                reassignWrap.className = 'pt-2 border-t border-slate-800 text-xs text-slate-300';
+                reassignWrap.innerHTML = `
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="reassignCurrentOverBallsChk" class="rounded bg-slate-900 border-slate-700 text-sky-500">
+                        <span>Reassign balls bowled in this current over to new bowler</span>
+                    </label>
+                `;
+                sel.parentElement.insertAdjacentElement('afterend', reassignWrap);
+            }
+            const isMidOver = (inn.legalBalls % 6 !== 0) || (inn.thisOver && inn.thisOver.length > 0 && !isNewOverStart);
+            reassignWrap.classList.toggle('hidden', !isMidOver);
+            const chk = document.getElementById('reassignCurrentOverBallsChk');
+            if (chk) chk.checked = false;
+        };
+
+        const origConfirmNextBowler = app.confirmNextBowler.bind(app);
+        app.confirmNextBowler = function() {
+            const inn = this.getActiveInnings();
+            const sel = document.getElementById('nextBowlerSelect');
+            const chk = document.getElementById('reassignCurrentOverBallsChk');
+            const oldBowler = inn ? inn.currentBowler : null;
+            const newBowler = sel ? sel.value : null;
+
+            if (inn && chk && chk.checked && oldBowler && newBowler && oldBowler !== newBowler) {
+                const oldSt = inn.bowlStats[oldBowler];
+                const newSt = inn.bowlStats[newBowler];
+                const ballsInOver = inn.legalBalls % 6;
+                const overRuns = oldSt ? (oldSt.currentOverRuns || 0) : 0;
+                if (oldSt && newSt) {
+                    oldSt.balls = Math.max(0, oldSt.balls - ballsInOver);
+                    oldSt.runs = Math.max(0, oldSt.runs - overRuns);
+                    oldSt.currentOverRuns = 0;
+                    newSt.balls += ballsInOver;
+                    newSt.runs += overRuns;
+                    newSt.currentOverRuns = overRuns;
+                }
+                (inn.ballLog || []).slice(0, inn.thisOver.length).forEach(b => {
+                    if (b.bowler === oldBowler) {
+                        b.bowler = newBowler;
+                        if (b.desc) b.desc = b.desc.replace(oldBowler, newBowler);
+                    }
+                });
+            }
+            origConfirmNextBowler();
+        };
+
+        // #17: Instant Spectator QR Code Inside Share & Cloud Modal
+        const origOpenShareModal = app.openShareModal.bind(app);
+        app.openShareModal = function() {
+            origOpenShareModal();
+            const shareModal = document.getElementById('modal-share');
+            if (!shareModal) return;
+            const room = this.getRoomCode();
+            const baseUrl = this.getDatabaseBaseUrl();
+            let specLink = `${window.location.origin}${window.location.pathname}?room=${room}`;
+            if (baseUrl) specLink += `&k=${btoa(baseUrl)}`;
+
+            let qrBox = document.getElementById('spectatorQrCodeContainer');
+            if (!qrBox) {
+                qrBox = document.createElement('div');
+                qrBox.id = 'spectatorQrCodeContainer';
+                qrBox.className = 'p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-2 mt-2';
+                const copyBtn = shareModal.querySelector('button[onclick*="copySpectatorLink"]');
+                if (copyBtn && copyBtn.parentElement) {
+                    copyBtn.parentElement.appendChild(qrBox);
+                }
+            }
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(specLink)}`;
+            qrBox.innerHTML = `
+                <span class="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">📱 Scan QR for Instant Spectator TV View</span>
+                <img src="${qrUrl}" alt="Spectator QR Code" class="w-32 h-32 mx-auto rounded-xl border-2 border-emerald-500/40 bg-white p-1 shadow-lg">
+                <span class="text-[10px] text-slate-400 block">Friends at the ground can scan with phone camera</span>
+            `;
+        };
+
+        // #8: Team-Color Franchise Accent Bars + Toss & Series Standings on Downloadable Match Summary PNG
+        app.downloadBroadcastSummaryPNG = function() {
+            const match = this.getActiveMatch();
+            if (!match) return;
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200; canvas.height = 880;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#060911'; ctx.fillRect(0, 0, 1200, 880);
+            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 4; ctx.strokeRect(20, 20, 1160, 840);
+
+            ctx.fillStyle = '#10b981'; ctx.font = 'bold 26px Inter, sans-serif';
+            ctx.fillText(`CricPulse Pro (By Cherry) • ${this.state.seriesName || 'Official Broadcast Summary'}`, 55, 66);
+
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 42px Inter, sans-serif';
+            ctx.fillText(`${match.teamA.name} vs ${match.teamB.name}`, 55, 120);
+
+            ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 22px Inter, sans-serif';
+            ctx.fillText(`🏆 ${match.resultText || 'Live Match in Progress'} • ${match.venue} (${match.pitchType})`, 55, 158);
+            ctx.fillStyle = '#94a3b8'; ctx.font = '18px Inter, sans-serif';
+            ctx.fillText(`🪙 ${match.tossText || ''}`, 55, 188);
+
+            let y = 212;
+            match.innings.slice(0, 2).forEach(inn => {
+                const tColor = inn.battingTeamKey === 'A' ? (match.teamA.color || '#10b981') : (match.teamB.color || '#38bdf8');
+                ctx.fillStyle = '#111c30'; ctx.fillRect(55, y, 1090, 240);
+                ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.strokeRect(55, y, 1090, 240);
+                // Franchise Team Color Left Bar
+                ctx.fillStyle = tColor; ctx.fillRect(55, y, 12, 240);
+
+                ctx.fillStyle = '#ffffff'; ctx.font = 'bold 30px Inter, sans-serif';
+                ctx.fillText(`${inn.battingTeamName}`, 85, y + 48);
+
+                ctx.fillStyle = '#34d399'; ctx.font = 'bold 36px JetBrains Mono, monospace';
+                ctx.fillText(`${inn.runs}/${inn.wickets} (${this.formatOvers(inn.legalBalls)} ov)`, 780, y + 48);
+
+                const topBatters = Object.values(inn.batStats || {}).filter(b => b.balls > 0 || b.runs > 0).sort((a, b) => b.runs - a.runs).slice(0, 2);
+                const topBowlers = Object.values(inn.bowlStats || {}).filter(bw => bw.balls > 0).sort((a, b) => b.wickets - a.wickets || a.runs - b.runs).slice(0, 2);
+
+                ctx.fillStyle = '#94a3b8'; ctx.font = 'bold 18px Inter, sans-serif';
+                ctx.fillText('TOP BATTERS', 85, y + 95);
+                ctx.fillText('TOP BOWLERS', 640, y + 95);
+
+                ctx.fillStyle = '#f8fafc'; ctx.font = '22px Inter, sans-serif';
+                if (topBatters.length === 0) ctx.fillText('No batters recorded yet', 85, y + 135);
+                else topBatters.forEach((b, idx) => ctx.fillText(`• ${b.name}: ${b.runs}${b.status === 'batting' ? '*' : ''} (${b.balls}b) [4s:${b.fours}, 6s:${b.sixes}]`, 85, y + 135 + (idx * 42)));
+
+                if (topBowlers.length === 0) ctx.fillText('No bowlers recorded yet', 640, y + 135);
+                else topBowlers.forEach((bw, idx) => ctx.fillText(`• ${bw.name}: ${bw.wickets}-${bw.runs} (${this.formatOvers(bw.balls)} ov)`, 640, y + 135 + (idx * 42)));
+                y += 265;
+            });
+
+            const ratings = this.computeMatchPlayerRatings(match);
+            const mvp = ratings[0];
+            ctx.fillStyle = '#1e293b'; ctx.fillRect(55, 755, 1090, 70);
+            ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 24px Inter, sans-serif';
+            ctx.fillText(mvp ? `👑 Player of the Match (MVP): ${mvp.name} (${mvp.rating10.toFixed(1)}/10) — ${mvp.runs} R & ${mvp.wickets} W` : '👑 Official Match Broadcast Card • CricPulse Pro (By Cherry)', 80, 798);
+
+            const url = canvas.toDataURL('image/png');
+            const dl = document.createElement('a');
+            dl.href = url;
+            dl.download = `cricpulse_summary_${match.matchId}.png`;
+            dl.click();
+            dl.remove();
+            this.showToast('📸 Franchise Match Summary PNG Downloaded!', 'emerald');
+        };
+
+        // #13: Toggle Ball-by-Ball Commentary for Any Over in Full Scorecard
+        app.toggleScorecardOverExpand = function(innNum, overNum) {
+            const key = `${innNum}-${overNum}`;
+            this.expandedScorecardOvers[key] = !this.expandedScorecardOvers[key];
+            this.renderFullScorecard();
+        };
+
+        // #4, #12, #13, #15: Enhance Full Scorecard (Clickable Bowler Profile Rows, Over Badges, Tap-to-Expand Over Balls)
+        const prevRenderFullScorecard = app.renderFullScorecard.bind(app);
+        app.renderFullScorecard = function() {
+            prevRenderFullScorecard();
+            const match = this.getActiveMatch();
+            if (!match) return;
+            const cards = document.querySelectorAll('#fullScorecardContainer > div.glass-card');
+            match.innings.forEach((inn, iIdx) => {
+                const card = cards[iIdx];
+                if (!card) return;
+
+                // #4 & #15: Make Bowler rows clickable for Player Profile Card + add Spell Badges
+                const tables = card.querySelectorAll('table');
+                if (tables.length >= 2) {
+                    const bowlRows = tables[1].querySelectorAll('tbody tr');
+                    const bowlers = inn.bowlingRoster.map(p => inn.bowlStats[p]).filter(b => b && b.balls > 0);
+                    bowlRows.forEach((tr, bIdx) => {
+                        const bw = bowlers[bIdx];
+                        if (!bw) return;
+                        tr.classList.add('cursor-pointer', 'hover:bg-slate-800/60', 'transition-colors');
+                        tr.onclick = () => app.openPlayerProfileModal(bw.name);
+                        const firstTd = tr.querySelector('td');
+                        if (firstTd && bw.wickets >= 2 && !firstTd.innerHTML.includes('Spell')) {
+                            firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black">🎯 ${bw.wickets}W Spell</span>`;
+                        }
+                    });
+                }
+
+                // #12 & #13: Upgrade Over-by-Over Breakdown with Badges & Tap-to-Expand Ball Commentary
+                const headings = Array.from(card.querySelectorAll('h4'));
+                const ovHeading = headings.find(h => h.textContent.includes('Over-by-Over Breakdown'));
+                if (ovHeading && ovHeading.parentElement && inn.oversHistory && inn.oversHistory.length > 0) {
+                    ovHeading.parentElement.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400">Over-by-Over Breakdown <span class="text-[10px] text-slate-400 font-normal ml-1">(Tap any over for ball-by-ball)</span></h4>
+                        </div>
+                        <div class="space-y-1.5 max-h-64 overflow-y-auto pr-1 text-xs">
+                            ${inn.oversHistory.map(o => {
+                                const wktsInOver = (o.balls || []).filter(b => String(b.label).toUpperCase().includes('W') && !String(b.label).toUpperCase().includes('WD')).length;
+                                const isBigOver = (o.overRuns ?? 0) >= 15;
+                                const isMaiden = (o.overRuns ?? 0) === 0 && (o.balls || []).length >= 6;
+                                const badgeHtml = isBigOver
+                                    ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black ml-1.5">💥 BIG OVER</span>`
+                                    : (isMaiden ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black ml-1.5">🧱 MAIDEN</span>` : '')
+                                    + (wktsInOver >= 2 ? `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black ml-1">🎯 ${wktsInOver}W OVER</span>` : '');
+
+                                const expKey = `${inn.inningsNumber}-${o.overNum}`;
+                                const isExp = !!app.expandedScorecardOvers[expKey];
+                                const overBallsComm = (inn.ballLog || []).filter(b => {
+                                    const [ovInt, bDec] = String(b.over || '0.0').split('.').map(Number);
+                                    return (ovInt === o.overNum - 1 && bDec > 0) || (ovInt === o.overNum && bDec === 0);
+                                }).reverse();
+
+                                return `
+                                    <div onclick="app.toggleScorecardOverExpand(${inn.inningsNumber}, ${o.overNum})" class="cursor-pointer p-2.5 rounded-xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 space-y-2 transition-colors">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <div class="flex items-center flex-wrap">
+                                                <span class="font-black text-white">Over ${o.overNum}</span>
+                                                <span class="text-slate-400 ml-1">(${o.bowler} • <strong class="text-emerald-300">${o.overRuns ?? 0} R</strong>)</span>
+                                                ${badgeHtml}
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                ${(o.balls || []).map(b => `<span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] text-slate-200">${b.label}</span>`).join('')}
+                                                <i class="fa-solid fa-chevron-${isExp ? 'up' : 'down'} text-[10px] text-slate-400 ml-1"></i>
+                                            </div>
+                                        </div>
+                                        ${isExp && overBallsComm.length > 0 ? `
+                                            <div class="pt-2 border-t border-slate-800/80 space-y-1 text-[11px] text-slate-300">
+                                                ${overBallsComm.map(b => `<div class="pl-2 border-l-2 border-emerald-500/40">${b.desc}</div>`).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            });
+        };
+
+        // #3, #4, #6, #7, #9, #14, #15, #19: Enhance Live Match Console & Series Hub post-render
+        const prevRenderAllMaster = app.renderAll.bind(app);
+        app.renderAll = function() {
+            prevRenderAllMaster();
+            const match = this.getActiveMatch();
+            const inn = this.getActiveInnings();
+            const main = document.getElementById('mainViewContainer');
+            if (!main || !match) return;
+
+            // #19: Series Champions & Player of the Series (Series MVP) Banner on Hub
+            if (this.state.activeView === 'hub' && this.state.matches.length > 0) {
+                const totalM = this.state.totalMatches || 1;
+                const neededWins = Math.floor(totalM / 2) + 1;
+                let winsA = 0, winsB = 0;
+                this.state.matches.forEach(m => {
+                    if (m.status === 'completed') {
+                        if (m.winnerTeamKey === 'A') winsA++;
+                        else if (m.winnerTeamKey === 'B') winsB++;
+                    }
+                });
+                const isSeriesClinched = (totalM > 1 && (winsA >= neededWins || winsB >= neededWins || this.state.matches.filter(m => m.status === 'completed').length >= totalM));
+                if (isSeriesClinched && !document.getElementById('seriesChampionsBanner')) {
+                    const champName = winsA > winsB ? match.teamA.name : (winsB > winsA ? match.teamB.name : 'Series Drawn');
+                    // Calculate Player of the Series
+                    const seriesPts = {};
+                    this.state.matches.forEach(m => {
+                        this.computeMatchPlayerRatings(m).forEach(r => {
+                            if (!seriesPts[r.name]) seriesPts[r.name] = { name: r.name, team: r.teamName, runs: 0, wkts: 0, score: 0 };
+                            seriesPts[r.name].runs += r.runs;
+                            seriesPts[r.name].wkts += r.wickets;
+                            seriesPts[r.name].score += r.rating10;
+                        });
+                    });
+                    const seriesMvp = Object.values(seriesPts).sort((a, b) => b.score - a.score)[0];
+                    const banner = document.createElement('div');
+                    banner.id = 'seriesChampionsBanner';
+                    banner.className = 'glass-card rounded-3xl p-4 sm:p-5 border-2 border-amber-400/70 bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 flex flex-wrap items-center justify-between gap-3 shadow-2xl';
+                    banner.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-2xl font-black shadow-lg">🏆</div>
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-amber-300 block">Official Series Champions</span>
+                                <h3 class="text-lg sm:text-xl font-black text-white">${champName} (${winsA} - ${winsB})</h3>
+                            </div>
+                        </div>
+                        ${seriesMvp ? `
+                            <div onclick="app.openPlayerProfileModal('${seriesMvp.name.replace(/'/g, "\\'")}')" class="cursor-pointer px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-amber-400/50 text-xs">
+                                <span class="text-[10px] font-black uppercase text-amber-400 block">👑 Player of the Series</span>
+                                <span class="font-black text-white">${seriesMvp.name}</span> <span class="score-font text-emerald-400 ml-1">(${seriesMvp.runs} R • ${seriesMvp.wkts} W)</span>
+                            </div>
+                        ` : ''}
+                    `;
+                    const firstCard = main.querySelector('.space-y-6 > div');
+                    if (firstCard) firstCard.insertAdjacentElement('afterend', banner);
+                }
+            }
+
+            if (this.state.activeView !== 'match' || !inn) return;
+
+            // #3: Deduplicate End-of-Over Commentary Dividers
+            const commDividers = main.querySelectorAll('.max-h-56 > div.bg-gradient-to-r');
+            const seenOvers = new Set();
+            commDividers.forEach(div => {
+                const txt = div.textContent.trim();
+                const m = txt.match(/End of Over (\d+)/i);
+                if (m) {
+                    if (seenOvers.has(m[1])) div.remove();
+                    else seenOvers.add(m[1]);
+                }
+            });
+
+            // #6, #7, #9, #14, #15: Enhance Active Batters & Current Bowler Card on Live Console
+            const tables = main.querySelectorAll('table');
+            if (tables.length >= 2) {
+                const batTable = tables[0];
+                const bowlTable = tables[1];
+
+                // #9: Lock tabular-nums fixed widths on numeric columns so Batters & Bowler tables align vertically
+                [batTable, bowlTable].forEach(t => {
+                    t.querySelectorAll('th:not(:first-child), td:not(:first-child)').forEach(cell => {
+                        cell.classList.add('w-10', 'sm:w-12', 'text-right', 'score-font');
+                    });
+                });
+
+                // #14: Add Nearing 50 / 100 Milestone Pill on Active Batters
+                const batRows = batTable.querySelectorAll('tbody tr');
+                [inn.striker, inn.nonStriker].filter(Boolean).forEach((bName, idx) => {
+                    const st = inn.batStats[bName];
+                    const row = batRows[idx];
+                    if (!st || !row) return;
+                    const firstTd = row.querySelector('td');
+                    if (firstTd && st.runs >= 35 && st.runs < 50 && !firstTd.innerHTML.includes('to 50')) {
+                        firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap">⭐ ${50 - st.runs} to 50</span>`;
+                    } else if (firstTd && st.runs >= 85 && st.runs < 100 && !firstTd.innerHTML.includes('to 100')) {
+                        firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap">👑 ${100 - st.runs} to 100</span>`;
+                    }
+                });
+
+                // #6: Inject Live Dual-Color Active Partnership Split Bar right above Active Batters table
+                const batHeaderWrap = batTable.parentElement?.previousElementSibling;
+                if (batHeaderWrap && inn.partnership && inn.partnership.balls > 0 && !document.getElementById('liveActivePartSplitBar')) {
+                    const b1N = inn.partnership.b1Name || inn.striker || 'Batter 1';
+                    const b2N = inn.partnership.b2Name || inn.nonStriker || 'Partner';
+                    const b1R = inn.partnership.b1Runs || 0;
+                    const b2R = inn.partnership.b2Runs || 0;
+                    const tot = Math.max(1, b1R + b2R + (inn.partnership.extras || 0));
+                    const p1 = Math.round((b1R / tot) * 100);
+                    const p2 = Math.max(0, 100 - p1);
+                    const splitDiv = document.createElement('div');
+                    splitDiv.id = 'liveActivePartSplitBar';
+                    splitDiv.className = 'mb-2 space-y-1';
+                    splitDiv.innerHTML = `
+                        <div class="flex items-center justify-between text-[10px] text-slate-400">
+                            <span><strong class="text-emerald-300">${b1N}:</strong> ${b1R} (${inn.partnership.b1Balls || 0}b)</span>
+                            <span><strong class="text-sky-300">${b2N}:</strong> ${b2R} (${inn.partnership.b2Balls || 0}b)${inn.partnership.extras ? ` • Ex: ${inn.partnership.extras}` : ''}</span>
+                        </div>
+                        <div class="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
+                            <div class="h-full bg-emerald-500" style="width:${p1}%"></div>
+                            <div class="h-full bg-sky-400" style="width:${p2}%"></div>
+                        </div>
+                    `;
+                    batHeaderWrap.insertAdjacentElement('afterend', splitDiv);
+                }
+
+                // #7: Inject 1-Line "☝️ Last Wkt:" Broadcast Ticker Strip when wickets > 0
+                if (inn.fow && inn.fow.length > 0 && !document.getElementById('liveLastWktStrip')) {
+                    const lw = inn.fow[inn.fow.length - 1];
+                    const lwStats = inn.batStats[lw.batter];
+                    const lwStrip = document.createElement('div');
+                    lwStrip.id = 'liveLastWktStrip';
+                    lwStrip.className = 'mt-2 px-2.5 py-1 rounded-xl bg-rose-500/10 border border-rose-500/25 text-[11px] text-slate-300 flex items-center justify-between gap-2';
+                    lwStrip.innerHTML = `
+                        <span class="truncate"><strong class="text-rose-400">☝️ Last Wkt:</strong> <strong class="text-white">${lw.batter}</strong> ${lwStats ? `${lwStats.runs} (${lwStats.balls}b) — ${lwStats.outDesc}` : ''}</span>
+                        <span class="score-font text-rose-300 font-bold shrink-0">${lw.runs}/${lw.wicketNum} (${lw.overs} ov)</span>
+                    `;
+                    batTable.parentElement.insertAdjacentElement('afterend', lwStrip);
+                }
+
+                // #4 & #15: Make Current Bowler row clickable for Player Profile + show Dots & Spell Badge
+                const bowlRow = bowlTable.querySelector('tbody tr');
+                const bwObj = inn.currentBowler ? inn.bowlStats[inn.currentBowler] : null;
+                if (bowlRow && bwObj) {
+                    bowlRow.classList.add('cursor-pointer', 'hover:bg-slate-800/60', 'transition-colors');
+                    bowlRow.onclick = () => app.openPlayerProfileModal(inn.currentBowler);
+                    const firstTd = bowlRow.querySelector('td');
+                    if (firstTd && !firstTd.innerHTML.includes('Dots:')) {
+                        const spellBadge = bwObj.wickets >= 2 ? ` <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black">🎯 ${bwObj.wickets}W</span>` : '';
+                        firstTd.innerHTML = `${inn.currentBowler}${spellBadge} <span class="text-[10px] text-slate-400 font-normal ml-1">(Dots: ${bwObj.dots || 0})</span>`;
+                    }
+                }
+            }
+        };
+
+        app.renderAll();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachCricPulseMaster19Suite);
+    } else {
+        attachCricPulseMaster19Suite();
+    }
+})();
+</script>    
 </body>
 </html>
