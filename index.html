@@ -6576,6 +6576,930 @@
     }
 })();
 </script>
+
+<!-- ========================================================================= -->
+<!-- CRICPULSE PRO — FINAL ALL-IN-ONE BUG FIX & BROADCAST POLISH PATCH         -->
+<!-- HOW TO USE: Paste this entire block right BEFORE the closing </body> tag  -->
+<!-- at the very bottom of your working index.html file and save!              -->
+<!-- ========================================================================= -->
+<style>
+    @keyframes scorePopGlowPatch {
+        0% { transform: scale(1.07); text-shadow: 0 0 18px rgba(52, 211, 153, 0.75); }
+        100% { transform: scale(1); text-shadow: none; }
+    }
+    @keyframes fadeSlideUpPatch {
+        from { opacity: 0.75; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .score-pop-patch { animation: scorePopGlowPatch 0.45s ease-out; }
+    .view-fade-patch { animation: fadeSlideUpPatch 0.22s ease-out; }
+
+    /* Sticky Frozen First Column for Mobile Wide Tables (All Player Ratings & Scorecard) */
+    .sticky-col-table th:first-child,
+    .sticky-col-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 12;
+        background: rgba(11, 18, 32, 0.96);
+        backdrop-filter: blur(6px);
+        box-shadow: 4px 0 10px -4px rgba(0, 0, 0, 0.65);
+    }
+    .sticky-col-table thead th:first-child {
+        z-index: 15;
+        background: rgba(15, 23, 42, 0.98);
+    }
+
+    /* Podium Left-Edge Highlights for Top 3 Rated Players */
+    .podium-rank-1 { border-left: 3px solid #fbbf24 !important; background: linear-gradient(90deg, rgba(251, 191, 36, 0.12), transparent 55%); }
+    .podium-rank-2 { border-left: 3px solid #cbd5e1 !important; background: linear-gradient(90deg, rgba(203, 213, 225, 0.10), transparent 55%); }
+    .podium-rank-3 { border-left: 3px solid #d97706 !important; background: linear-gradient(90deg, rgba(217, 119, 6, 0.10), transparent 55%); }
+
+    /* Sleek Custom Scrollbars */
+    .overflow-x-auto::-webkit-scrollbar,
+    .overflow-y-auto::-webkit-scrollbar { height: 5px; width: 5px; }
+    .overflow-x-auto::-webkit-scrollbar-thumb,
+    .overflow-y-auto::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 9999px; }
+</style>
+
+<script>
+(function() {
+    function attachCricPulseFinalMasterPatch() {
+        if (!window.app) {
+            setTimeout(attachCricPulseFinalMasterPatch, 90);
+            return;
+        }
+        const app = window.app;
+        if (app._finalMasterPatchApplied) return;
+        app._finalMasterPatchApplied = true;
+
+        app.expandedScorecardOvers = app.expandedScorecardOvers || {};
+        app._localSpectatorView = null;
+        app._localSpectatorMatchIdx = null;
+        app._forceNextRender = true;
+        app._lastRenderedFingerprint = '';
+
+        // ---------------------------------------------------------------------
+        // 0. FIX: LOCK SPECTATOR TAB (HUB/CARD/STATS) & PREVENT SCROLL RESETS
+        // ---------------------------------------------------------------------
+        if (typeof app.navigate === 'function') {
+            const origNavigate = app.navigate.bind(app);
+            app.navigate = function(view) {
+                this._localSpectatorView = view;
+                this._forceNextRender = true;
+                origNavigate(view);
+            };
+        }
+
+        if (typeof app.selectMatch === 'function') {
+            const origSelectMatch = app.selectMatch.bind(app);
+            app.selectMatch = function(idx) {
+                this._localSpectatorMatchIdx = idx;
+                this._forceNextRender = true;
+                origSelectMatch(idx);
+            };
+        }
+
+        // Helper: Lightweight fingerprint of current visible state so unchanged polls skip DOM wipes
+        function computeVisibleStateFingerprint(appRef) {
+            const st = appRef.state || {};
+            const mIdx = st.currentMatchIndex || 0;
+            const m = st.matches?.[mIdx];
+            const inn = m?.innings?.[m.currentInningsIndex || 0];
+            const expKeys = Object.keys(appRef.expandedScorecardOvers || {}).filter(k => appRef.expandedScorecardOvers[k]).join(',');
+            return [
+                st.activeView || '',
+                mIdx,
+                (st.matches || []).length,
+                m?.status || '',
+                m?.resultText || '',
+                m?.currentInningsIndex || 0,
+                inn?.runs || 0,
+                inn?.wickets || 0,
+                inn?.legalBalls || 0,
+                inn?.striker || '',
+                inn?.nonStriker || '',
+                inn?.currentBowler || '',
+                (inn?.thisOver || []).length,
+                (inn?.ballLog || []).length,
+                inn?.ballLog?.[0]?.desc || '',
+                appRef.activeExtraMode || '',
+                appRef.commentaryFilter || '',
+                appRef.wagonFilterInnings || '',
+                appRef.wagonFilterBatter || '',
+                appRef.wagonFilterType || '',
+                expKeys
+            ].join('|');
+        }
+
+        // Helper: Save & Restore all scroll positions (Over-by-Over vertical + Stats table horizontal)
+        function captureScrollPositions() {
+            const snap = { winY: window.scrollY, yList: [], xList: [] };
+            document.querySelectorAll('#mainViewContainer .overflow-y-auto').forEach((el, idx) => {
+                snap.yList[idx] = el.scrollTop;
+            });
+            document.querySelectorAll('#mainViewContainer .overflow-x-auto').forEach((el, idx) => {
+                snap.xList[idx] = el.scrollLeft;
+            });
+            return snap;
+        }
+
+        function restoreScrollPositions(snap) {
+            if (!snap) return;
+            document.querySelectorAll('#mainViewContainer .overflow-y-auto').forEach((el, idx) => {
+                if (typeof snap.yList[idx] === 'number' && snap.yList[idx] > 0) {
+                    el.scrollTop = snap.yList[idx];
+                }
+            });
+            document.querySelectorAll('#mainViewContainer .overflow-x-auto').forEach((el, idx) => {
+                if (typeof snap.xList[idx] === 'number' && snap.xList[idx] > 0) {
+                    el.scrollLeft = snap.xList[idx];
+                }
+            });
+        }
+
+        // Floating Back-to-Top Button for long mobile Scorecards & Analytics
+        if (!document.getElementById('cricpulseBackToTopBtn')) {
+            const topBtn = document.createElement('button');
+            topBtn.id = 'cricpulseBackToTopBtn';
+            topBtn.title = 'Back to Top';
+            topBtn.className = 'hidden fixed bottom-5 right-4 z-40 w-10 h-10 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center transition-all backdrop-blur';
+            topBtn.innerHTML = '<i class="fa-solid fa-arrow-up text-sm"></i>';
+            topBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.body.appendChild(topBtn);
+            window.addEventListener('scroll', () => {
+                topBtn.classList.toggle('hidden', window.scrollY < 420);
+            }, { passive: true });
+        }
+
+        // Helper: Strictly identify a Bowler's Wicket (excludes Run Out & Retired Out)
+        function isTrueBowlerWicket(ball) {
+            if (!ball) return false;
+            if (ball.isBowlerWicket === false) return false;
+            if (ball.isBowlerWicket === true) return true;
+            const lbl = String(ball.label || '').toUpperCase();
+            const desc = String(ball.desc || '').toLowerCase();
+            if (desc.includes('run out') || desc.includes('retired')) return false;
+            if (lbl === 'RO') return false;
+            return lbl.includes('W') && !lbl.includes('WD');
+        }
+
+        // Helper: Exact mathematical run value of any ball chip in This Over
+        function getExactChipRuns(chip) {
+            if (chip && typeof chip.runs === 'number' && !isNaN(chip.runs)) return chip.runs;
+            const lbl = String(chip?.label || '').toLowerCase().trim();
+            if (!lbl || lbl === 'w' || lbl === 'ro') return 0;
+            const m = lbl.match(/\d+/);
+            const base = m ? parseInt(m[0], 10) : 0;
+            if (lbl.includes('+nb') || lbl.includes('+wd') || lbl.includes('nb+') || lbl.includes('wd+')) return base + 1;
+            if (lbl.includes('nb') || lbl.includes('wd')) return Math.max(1, base);
+            return base;
+        }
+
+        // ---------------------------------------------------------------------
+        // 1. FIX: RUN OUT EXCLUDED FROM HAT-TRICK COUNTER + EXACT CHIP RUNS
+        // ---------------------------------------------------------------------
+        if (typeof app.confirmWicket === 'function') {
+            const origConfirmWicket = app.confirmWicket.bind(app);
+            app.confirmWicket = function() {
+                const inn = this.getActiveInnings();
+                const wTypeEl = document.getElementById('wicketTypeSelect');
+                const wExtraEl = document.getElementById('wicketExtraTypeSelect');
+                const wRunsEl = document.getElementById('wicketRunsCompleted');
+                const wType = wTypeEl ? wTypeEl.value : 'Bowled';
+                const wExtra = wExtraEl ? wExtraEl.value : 'NONE';
+                const completedRuns = wRunsEl ? (parseInt(wRunsEl.value, 10) || 0) : 0;
+                const extraPen = (wExtra === 'NB' || wExtra === 'WD') ? 1 : 0;
+                const exactRuns = completedRuns + extraPen;
+                const isBowlerWkt = (wType !== 'Run Out');
+
+                const bowlerBefore = inn?.currentBowler;
+                const prevHatTricks = (bowlerBefore && inn?.bowlStats?.[bowlerBefore])
+                    ? (inn.bowlStats[bowlerBefore].hatTricks || 0)
+                    : 0;
+
+                origConfirmWicket();
+
+                // Tag the logged wicket ball with exact isBowlerWicket & exact runs
+                if (inn && inn.ballLog && inn.ballLog[0]) {
+                    inn.ballLog[0].isBowlerWicket = isBowlerWkt;
+                    inn.ballLog[0].runs = exactRuns;
+                }
+                if (inn && inn.thisOver && inn.thisOver.length > 0) {
+                    inn.thisOver[inn.thisOver.length - 1].runs = exactRuns;
+                }
+
+                // Verify Hat-Trick strictly across 3 consecutive BOWLER wickets only
+                if (inn && bowlerBefore && inn.bowlStats?.[bowlerBefore]) {
+                    const bDeliveries = (inn.ballLog || []).filter(b =>
+                        b.bowler === bowlerBefore &&
+                        !String(b.label || '').toUpperCase().includes('WD') &&
+                        !String(b.label || '').toUpperCase().includes('NB')
+                    );
+                    const realHatTrick = isBowlerWkt &&
+                        bDeliveries.length >= 3 &&
+                        isTrueBowlerWicket(bDeliveries[0]) &&
+                        isTrueBowlerWicket(bDeliveries[1]) &&
+                        isTrueBowlerWicket(bDeliveries[2]);
+
+                    if (!realHatTrick && inn.bowlStats[bowlerBefore].hatTricks > prevHatTricks) {
+                        inn.bowlStats[bowlerBefore].hatTricks = prevHatTricks;
+                    }
+                    this.saveState();
+                }
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 2. FIX: STAMP EXACT RUNS ON NORMAL DELIVERIES + SKIP WAGON ON NB+BYE
+        // ---------------------------------------------------------------------
+        if (typeof app.recordDelivery === 'function') {
+            const origRecordDelivery = app.recordDelivery.bind(app);
+            app.recordDelivery = function(runs) {
+                if (this.activeExtraMode === 'NBB') {
+                    this.executeDelivery(runs, 'General');
+                    return;
+                }
+                origRecordDelivery(runs);
+            };
+        }
+
+        if (typeof app.executeDelivery === 'function') {
+            const origExecuteDelivery = app.executeDelivery.bind(app);
+            app.executeDelivery = function(runs, wagonZone) {
+                const inn = this.getActiveInnings();
+                const runsBefore = inn ? (inn.runs || 0) : 0;
+                origExecuteDelivery(runs, wagonZone);
+                if (inn && inn.thisOver && inn.thisOver.length > 0) {
+                    const delta = Math.max(0, (inn.runs || 0) - runsBefore);
+                    inn.thisOver[inn.thisOver.length - 1].runs = delta;
+                    this.saveState();
+                }
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 3. FIX: RETIRED OUT LOGS TO COMMENTARY & THIS OVER (NOT BOWLER WKT)
+        // ---------------------------------------------------------------------
+        if (typeof app.confirmRetire === 'function') {
+            const origConfirmRetire = app.confirmRetire.bind(app);
+            app.confirmRetire = function() {
+                const inn = this.getActiveInnings();
+                const retType = document.getElementById('retireTypeSelect')?.value;
+                const retBatter = document.getElementById('retireBatterSelect')?.value;
+                const logLenBefore = inn?.ballLog?.length || 0;
+
+                origConfirmRetire();
+
+                if (inn && retType === 'OUT' && retBatter && (inn.ballLog?.length || 0) === logLenBefore) {
+                    const overStamp = this.formatOvers(inn.legalBalls);
+                    const st = inn.batStats?.[retBatter];
+                    inn.thisOver.push({ label: 'RO', runs: 0, color: 'rose' });
+                    inn.ballLog.unshift({
+                        over: overStamp,
+                        striker: retBatter,
+                        bowler: inn.currentBowler || 'Team',
+                        label: 'RO',
+                        runs: 0,
+                        isBoundary: false,
+                        isWicket: true,
+                        isBowlerWicket: false,
+                        desc: `${overStamp} — WICKET! ${retBatter} retired out (${st ? `${st.runs} off ${st.balls}` : '0 off 0'})`
+                    });
+                    this.saveState();
+                    this.renderAll();
+                }
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 4. FIX: UNDO RESETS WIN & ANIMATION SIGNATURES
+        // ---------------------------------------------------------------------
+        if (typeof app.undoLastBall === 'function') {
+            const origUndo = app.undoLastBall.bind(app);
+            app.undoLastBall = function() {
+                this.lastMatchWinSignature = null;
+                this.lastAnimatedBallSig = null;
+                origUndo();
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 5. FIX: HAT-TRICK TICKER STRICTLY EXCLUDES RUN OUTS
+        // ---------------------------------------------------------------------
+        if (typeof app.getLiveBroadcastTickerAlerts === 'function') {
+            const origGetAlerts = app.getLiveBroadcastTickerAlerts.bind(app);
+            app.getLiveBroadcastTickerAlerts = function(match, inn) {
+                const alerts = origGetAlerts(match, inn) || [];
+                if (!inn || !inn.currentBowler) return alerts;
+
+                const bDeliveries = (inn.ballLog || []).filter(b =>
+                    b.bowler === inn.currentBowler &&
+                    !String(b.label || '').toUpperCase().includes('WD') &&
+                    !String(b.label || '').toUpperCase().includes('NB')
+                );
+                const trueOnHatTrick = bDeliveries.length >= 2 &&
+                    isTrueBowlerWicket(bDeliveries[0]) &&
+                    isTrueBowlerWicket(bDeliveries[1]);
+
+                return alerts.filter(a => {
+                    const txt = String(a.text || '').toUpperCase();
+                    if (txt.includes('HAT-TRICK') && !trueOnHatTrick) return false;
+                    return true;
+                });
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 6. FIX: SPECTATOR TV POPUP — NO FALSE HAT-TRICK + DIAMOND DUCK (0/0)
+        // ---------------------------------------------------------------------
+        if (typeof app.triggerSpectatorTVOverlay === 'function') {
+            const origTriggerTV = app.triggerSpectatorTVOverlay.bind(app);
+            app.triggerSpectatorTVOverlay = function(type, title, subtitle, theme) {
+                const inn = this.getActiveInnings();
+                const latestBall = inn?.ballLog?.[0];
+
+                // Guard 1: Downgrade false Hat-Trick popup if Run Out was involved
+                if (String(title || '').includes('HAT-TRICK') && type === 'WICKET' && inn && latestBall) {
+                    const bDeliveries = (inn.ballLog || []).filter(b =>
+                        b.bowler === latestBall.bowler &&
+                        !String(b.label || '').toUpperCase().includes('WD') &&
+                        !String(b.label || '').toUpperCase().includes('NB')
+                    );
+                    const realHT = isTrueBowlerWicket(latestBall) &&
+                        bDeliveries.length >= 3 &&
+                        isTrueBowlerWicket(bDeliveries[0]) &&
+                        isTrueBowlerWicket(bDeliveries[1]) &&
+                        isTrueBowlerWicket(bDeliveries[2]);
+                    if (!realHT) {
+                        title = '⚡ DIRECT HIT / RUN OUT!';
+                        subtitle = `${latestBall.striker || 'Batter'} is Run Out!`;
+                    }
+                }
+
+                // Guard 2: Upgrade 0 (0 balls) Golden Duck to Diamond Duck
+                if (type === 'DUCK' && inn && latestBall) {
+                    const bName = latestBall.striker || 'Batter';
+                    const bStats = inn.batStats?.[bName];
+                    if (bStats && bStats.runs === 0 && bStats.balls === 0) {
+                        title = '💎🦆 DIAMOND DUCK! 0 (0 Balls)';
+                        subtitle = `Quack Quack! ${bName} is out without facing a ball!`;
+                    }
+                }
+
+                origTriggerTV(type, title, subtitle, theme);
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 7. FIX: SERIES NRR CALCULATES ONLY FROM COMPLETED MATCHES
+        // ---------------------------------------------------------------------
+        if (typeof app.computeSeriesStandings === 'function') {
+            app.computeSeriesStandings = function() {
+                const m0 = this.state.matches?.[0];
+                const nameA = m0 ? m0.teamA.name : (this.state.teamA?.name || 'Team A');
+                const nameB = m0 ? m0.teamB.name : (this.state.teamB?.name || 'Team B');
+                const stats = {
+                    A: { key: 'A', name: nameA, p: 0, w: 0, l: 0, t: 0, pts: 0, runsFor: 0, oversFor: 0, runsAgainst: 0, oversAgainst: 0, nrr: 0 },
+                    B: { key: 'B', name: nameB, p: 0, w: 0, l: 0, t: 0, pts: 0, runsFor: 0, oversFor: 0, runsAgainst: 0, oversAgainst: 0, nrr: 0 }
+                };
+
+                (this.state.matches || []).forEach(m => {
+                    if (m.status !== 'completed') return;
+                    stats.A.p += 1; stats.B.p += 1;
+                    if (m.winnerTeamKey === 'A') { stats.A.w += 1; stats.A.pts += 2; stats.B.l += 1; }
+                    else if (m.winnerTeamKey === 'B') { stats.B.w += 1; stats.B.pts += 2; stats.A.l += 1; }
+                    else { stats.A.t += 1; stats.B.t += 1; stats.A.pts += 1; stats.B.pts += 1; }
+
+                    [m.innings?.[0], m.innings?.[1]].filter(Boolean).forEach(inn => {
+                        const maxWkts = m.rules?.lastManStanding ? inn.battingRoster.length : Math.max(1, inn.battingRoster.length - 1);
+                        const isAllOut = inn.wickets >= maxWkts;
+                        const oversCounted = isAllOut ? m.totalOvers : (inn.legalBalls / 6);
+                        const bKey = inn.battingTeamKey === 'B' ? 'B' : 'A';
+                        const fKey = bKey === 'A' ? 'B' : 'A';
+                        stats[bKey].runsFor += (inn.runs || 0);
+                        stats[bKey].oversFor += oversCounted;
+                        stats[fKey].runsAgainst += (inn.runs || 0);
+                        stats[fKey].oversAgainst += oversCounted;
+                    });
+                });
+
+                ['A', 'B'].forEach(k => {
+                    const s = stats[k];
+                    const rf = s.oversFor > 0 ? (s.runsFor / s.oversFor) : 0;
+                    const ra = s.oversAgainst > 0 ? (s.runsAgainst / s.oversAgainst) : 0;
+                    s.nrr = (s.oversFor > 0 && s.oversAgainst > 0) ? (rf - ra) : 0;
+                });
+
+                return [stats.A, stats.B].sort((a, b) => b.pts - a.pts || b.nrr - a.nrr);
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 8. ENHANCEMENT: PRESERVE SQUAD EDITS ON MATCH 2+ OF A SERIES
+        // ---------------------------------------------------------------------
+        app.startNextSeriesMatch = function() {
+            if (!this.isCreatorAuthorized) {
+                document.getElementById('modal-auth')?.classList.remove('hidden');
+                return;
+            }
+            const prevMatch = this.getActiveMatch();
+            if (!prevMatch) return;
+            this.startingSubsequentSeriesMatch = true;
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+            setVal('setupTeamAName', prevMatch.teamA.name);
+            setVal('setupTeamBName', prevMatch.teamB.name);
+            setVal('setupTeamAColor', prevMatch.teamA.color || '#10b981');
+            setVal('setupTeamBColor', prevMatch.teamB.color || '#38bdf8');
+            setVal('setupTeamAPlayers', (prevMatch.teamA.players || []).join(', '));
+            setVal('setupTeamBPlayers', (prevMatch.teamB.players || []).join(', '));
+            setVal('setupScorerPin', prevMatch.scorerPin || '7788');
+            if (typeof this.updateSetupTeamDropdowns === 'function') this.updateSetupTeamDropdowns();
+            document.getElementById('modal-toss')?.classList.remove('hidden');
+        };
+
+        // ---------------------------------------------------------------------
+        // 9. ENHANCEMENT: SMART TANDEM BOWLER + MID-OVER BOWLER REASSIGN
+        // ---------------------------------------------------------------------
+        if (typeof app.openBowlerModal === 'function') {
+            const origOpenBowlerModal = app.openBowlerModal.bind(app);
+            app.openBowlerModal = function() {
+                origOpenBowlerModal();
+                const inn = this.getActiveInnings();
+                const sel = document.getElementById('nextBowlerSelect');
+                if (!inn || !sel) return;
+
+                const isNewOverStart = inn.legalBalls > 0 && inn.legalBalls % 6 === 0;
+                const hist = inn.oversHistory || [];
+                const tandemBowler = (isNewOverStart && hist.length >= 2) ? hist[hist.length - 2].bowler : null;
+
+                Array.from(sel.options).forEach(opt => {
+                    if (tandemBowler && opt.value === tandemBowler && !opt.disabled && !opt.textContent.includes('[Tandem End]')) {
+                        opt.textContent = `⚡ ${opt.textContent} [Tandem End]`;
+                    }
+                });
+                if (tandemBowler) {
+                    const tandemOpt = Array.from(sel.options).find(o => o.value === tandemBowler && !o.disabled);
+                    if (tandemOpt) sel.value = tandemBowler;
+                }
+
+                let reassignWrap = document.getElementById('midOverReassignWrap');
+                if (!reassignWrap) {
+                    reassignWrap = document.createElement('div');
+                    reassignWrap.id = 'midOverReassignWrap';
+                    reassignWrap.className = 'pt-2 border-t border-slate-800 text-xs text-slate-300';
+                    reassignWrap.innerHTML = `
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="reassignCurrentOverBallsChk" class="rounded bg-slate-900 border-slate-700 text-sky-500">
+                            <span>Reassign current-over balls to new bowler</span>
+                        </label>
+                    `;
+                    sel.parentElement.insertAdjacentElement('afterend', reassignWrap);
+                }
+                const isMidOver = (inn.legalBalls % 6 !== 0) || (inn.thisOver && inn.thisOver.length > 0 && !isNewOverStart);
+                reassignWrap.classList.toggle('hidden', !isMidOver);
+                const chk = document.getElementById('reassignCurrentOverBallsChk');
+                if (chk) chk.checked = false;
+            };
+        }
+
+        if (typeof app.confirmNextBowler === 'function') {
+            const origConfirmNextBowler = app.confirmNextBowler.bind(app);
+            app.confirmNextBowler = function() {
+                const inn = this.getActiveInnings();
+                const sel = document.getElementById('nextBowlerSelect');
+                const chk = document.getElementById('reassignCurrentOverBallsChk');
+                const oldBowler = inn ? inn.currentBowler : null;
+                const newBowler = sel ? sel.value : null;
+
+                if (inn && chk && chk.checked && oldBowler && newBowler && oldBowler !== newBowler) {
+                    const oldSt = inn.bowlStats?.[oldBowler];
+                    const newSt = inn.bowlStats?.[newBowler];
+                    const ballsInOver = inn.legalBalls % 6;
+                    const overRuns = oldSt ? (oldSt.currentOverRuns || 0) : 0;
+                    if (oldSt && newSt) {
+                        oldSt.balls = Math.max(0, oldSt.balls - ballsInOver);
+                        oldSt.runs = Math.max(0, oldSt.runs - overRuns);
+                        oldSt.currentOverRuns = 0;
+                        newSt.balls += ballsInOver;
+                        newSt.runs += overRuns;
+                        newSt.currentOverRuns = overRuns;
+                    }
+                    (inn.ballLog || []).slice(0, inn.thisOver.length).forEach(b => {
+                        if (b.bowler === oldBowler) {
+                            b.bowler = newBowler;
+                            if (b.desc) b.desc = b.desc.replace(oldBowler, newBowler);
+                        }
+                    });
+                }
+                origConfirmNextBowler();
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 10. ENHANCEMENT: RETURNING RETIRED HURT LABELS IN WICKET & RETIRE MODALS
+        // ---------------------------------------------------------------------
+        if (typeof app.openWicketModal === 'function') {
+            const origOpenWicket = app.openWicketModal.bind(app);
+            app.openWicketModal = function() {
+                origOpenWicket();
+                const inn = this.getActiveInnings();
+                const sel = document.getElementById('wicketNextBatterSelect');
+                if (!inn || !sel) return;
+                Array.from(sel.options).forEach(opt => {
+                    const st = inn.batStats?.[opt.value];
+                    if (st && st.status === 'retired' && !opt.textContent.includes('Retired Hurt')) {
+                        opt.textContent = `🔄 ${opt.value} (Return from Retired Hurt — ${st.runs}* off ${st.balls}b)`;
+                    }
+                });
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 11. ENHANCEMENT: 1-TAP "🦆 TEST DUCK QUACK" IN FOOTER
+        // ---------------------------------------------------------------------
+        const footerTrumpetBtn = document.querySelector('footer button[onclick*="playIPLTrumpetFanfare"]');
+        if (footerTrumpetBtn && !document.getElementById('btnFooterTestDuck') && typeof app.playDuckQuackSound === 'function') {
+            const duckBtn = document.createElement('button');
+            duckBtn.id = 'btnFooterTestDuck';
+            duckBtn.className = 'scorer-only inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-bold transition-all';
+            duckBtn.innerHTML = '🦆 Test Duck Quack';
+            duckBtn.onclick = () => app.playDuckQuackSound(true);
+            footerTrumpetBtn.insertAdjacentElement('afterend', duckBtn);
+        }
+
+        // ---------------------------------------------------------------------
+        // 12. ENHANCEMENT: FULL SCORECARD CLICKABLE BOWLERS + TAP-TO-EXPAND OVERS
+        // ---------------------------------------------------------------------
+        app.toggleScorecardOverExpand = function(innNum, overNum) {
+            const scrollSnap = captureScrollPositions();
+            const key = `${innNum}-${overNum}`;
+            this.expandedScorecardOvers[key] = !this.expandedScorecardOvers[key];
+            this._forceNextRender = true;
+            this.renderFullScorecard();
+            requestAnimationFrame(() => restoreScrollPositions(scrollSnap));
+        };
+
+        if (typeof app.renderFullScorecard === 'function') {
+            const origRenderScorecard = app.renderFullScorecard.bind(app);
+            app.renderFullScorecard = function() {
+                const scrollSnap = captureScrollPositions();
+                origRenderScorecard();
+                const match = this.getActiveMatch();
+                if (!match) return;
+                const cards = document.querySelectorAll('#fullScorecardContainer > div.glass-card');
+                match.innings.forEach((inn, iIdx) => {
+                    const card = cards[iIdx];
+                    if (!card) return;
+
+                    // Remove "IPL SPLIT VIEW" wording from Partnership Breakdown headers/badges
+                    card.querySelectorAll('h4, span, div').forEach(el => {
+                        if (el.children.length === 0 && /IPL\s*SPLIT\s*VIEW/i.test(el.textContent || '')) {
+                            const cleaned = el.textContent.replace(/[•\-|]*\s*IPL\s*SPLIT\s*VIEW\s*/ig, '').trim();
+                            if (!cleaned) el.remove();
+                            else el.textContent = cleaned;
+                        }
+                    });
+
+                    // Clickable Bowler Profile Rows + Spell Badges
+                    const tables = card.querySelectorAll('table');
+                    if (tables.length >= 2) {
+                        const bowlRows = tables[1].querySelectorAll('tbody tr');
+                        const bowlers = inn.bowlingRoster.map(p => inn.bowlStats[p]).filter(b => b && b.balls > 0);
+                        bowlRows.forEach((tr, bIdx) => {
+                            const bw = bowlers[bIdx];
+                            if (!bw) return;
+                            tr.classList.add('cursor-pointer', 'hover:bg-slate-800/60', 'transition-colors');
+                            tr.onclick = () => app.openPlayerProfileModal(bw.name);
+                            const firstTd = tr.querySelector('td');
+                            if (firstTd && bw.wickets >= 2 && !firstTd.innerHTML.includes('Spell')) {
+                                firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black">🎯 ${bw.wickets}W Spell</span>`;
+                            }
+                        });
+                    }
+
+                    // Tap-to-Expand Over-by-Over Breakdown with Badges
+                    const headings = Array.from(card.querySelectorAll('h4'));
+                    const ovHeading = headings.find(h => h.textContent.includes('Over-by-Over Breakdown'));
+                    if (ovHeading && ovHeading.parentElement && inn.oversHistory && inn.oversHistory.length > 0) {
+                        ovHeading.parentElement.innerHTML = `
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400">Over-by-Over Breakdown <span class="text-[10px] text-slate-400 font-normal ml-1">(Tap any over for balls)</span></h4>
+                            <div class="space-y-1.5 max-h-64 overflow-y-auto pr-1 text-xs">
+                                ${inn.oversHistory.map(o => {
+                                    const wktsInOver = (o.balls || []).filter(b => String(b.label).toUpperCase().includes('W') && !String(b.label).toUpperCase().includes('WD')).length;
+                                    const isBigOver = (o.overRuns ?? 0) >= 15;
+                                    const isMaiden = (o.overRuns ?? 0) === 0 && (o.balls || []).length >= 6;
+                                    const badgeHtml = (isBigOver ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black ml-1.5">💥 BIG OVER</span>` : '')
+                                        + (isMaiden ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black ml-1.5">🧱 MAIDEN</span>` : '')
+                                        + (wktsInOver >= 2 ? `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black ml-1">🎯 ${wktsInOver}W OVER</span>` : '');
+                                    const expKey = `${inn.inningsNumber}-${o.overNum}`;
+                                    const isExp = !!app.expandedScorecardOvers[expKey];
+                                    const overBallsComm = (inn.ballLog || []).filter(b => {
+                                        const [ovInt, bDec] = String(b.over || '0.0').split('.').map(Number);
+                                        return (ovInt === o.overNum - 1 && bDec > 0) || (ovInt === o.overNum && bDec === 0);
+                                    }).reverse();
+                                    return `
+                                        <div onclick="app.toggleScorecardOverExpand(${inn.inningsNumber}, ${o.overNum})" class="cursor-pointer p-2.5 rounded-xl bg-slate-900/70 hover:bg-slate-800/80 border border-slate-800 space-y-2 transition-colors">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div class="flex items-center flex-wrap">
+                                                    <span class="font-black text-white">Over ${o.overNum}</span>
+                                                    <span class="text-slate-400 ml-1">(${o.bowler} • <strong class="text-emerald-300">${o.overRuns ?? 0} R</strong>)</span>
+                                                    ${badgeHtml}
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    ${(o.balls || []).map(b => `<span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] text-slate-200">${b.label}</span>`).join('')}
+                                                    <i class="fa-solid fa-chevron-${isExp ? 'up' : 'down'} text-[10px] text-slate-400 ml-1"></i>
+                                                </div>
+                                            </div>
+                                            ${isExp && overBallsComm.length > 0 ? `
+                                                <div class="pt-2 border-t border-slate-800/80 space-y-1 text-[11px] text-slate-300">
+                                                    ${overBallsComm.map(b => `<div class="pl-2 border-l-2 border-emerald-500/40">${b.desc}</div>`).join('')}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+                });
+                requestAnimationFrame(() => restoreScrollPositions(scrollSnap));
+            };
+        }
+
+        // ---------------------------------------------------------------------
+        // 13. LIVE CONSOLE, STATS & HUB VISUAL POLISH + SMART SPECTATOR SYNC
+        // ---------------------------------------------------------------------
+        if (typeof app.renderAll === 'function') {
+            const origRenderAllPatch = app.renderAll.bind(app);
+            app.renderAll = function() {
+                // Lock Spectator's chosen tab & match so Firebase sync never kicks them back to Live
+                if (this.isSpectator) {
+                    if (this._localSpectatorView) {
+                        this.state.activeView = this._localSpectatorView;
+                    }
+                    if (typeof this._localSpectatorMatchIdx === 'number' && this.state.matches?.[this._localSpectatorMatchIdx]) {
+                        this.state.currentMatchIndex = this._localSpectatorMatchIdx;
+                    }
+                }
+
+                // Skip redundant DOM rebuilds during unchanged Spectator polling (fixes scroll resets!)
+                const fp = computeVisibleStateFingerprint(this);
+                if (this.isSpectator && !this._forceNextRender && fp === this._lastRenderedFingerprint) {
+                    // Gently refresh live heartbeat timestamp without touching DOM scroll positions
+                    const hb = document.getElementById('spectatorLiveHeartbeat');
+                    if (hb) hb.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block"></span> LIVE • Synced';
+                    return;
+                }
+
+                const prevView = this._prevRenderedView;
+                const currentView = this.state?.activeView;
+                const scrollSnap = (prevView === currentView) ? captureScrollPositions() : null;
+
+                this._forceNextRender = false;
+                this._lastRenderedFingerprint = fp;
+                this._prevRenderedView = currentView;
+
+                origRenderAllPatch();
+
+                const match = this.getActiveMatch();
+                const inn = this.getActiveInnings();
+                const main = document.getElementById('mainViewContainer');
+                if (!main || !match) return;
+
+                if (prevView !== currentView) {
+                    main.classList.remove('view-fade-patch');
+                    void main.offsetWidth;
+                    main.classList.add('view-fade-patch');
+                }
+
+                // Global cleanup: remove any "IPL SPLIT VIEW" text anywhere in active view
+                main.querySelectorAll('h3, h4, span').forEach(el => {
+                    if (el.children.length === 0 && /IPL\s*SPLIT\s*VIEW/i.test(el.textContent || '')) {
+                        const cleaned = el.textContent.replace(/[•\-|]*\s*IPL\s*SPLIT\s*VIEW\s*/ig, '').trim();
+                        if (!cleaned) el.remove();
+                        else el.textContent = cleaned;
+                    }
+                });
+
+                // Spectator Live Heartbeat Pill in Broadcast Nav Bar
+                if (this.isSpectator) {
+                    const navBar = document.getElementById('cricpulseBroadcastNavBar')?.firstElementChild;
+                    if (navBar && !document.getElementById('spectatorLiveHeartbeat')) {
+                        const pill = document.createElement('div');
+                        pill.id = 'spectatorLiveHeartbeat';
+                        pill.className = 'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-rose-500/10 border border-rose-500/30 text-[10px] font-black text-rose-300 shrink-0';
+                        pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block"></span> LIVE • Synced';
+                        navBar.appendChild(pill);
+                    }
+                }
+
+                // STATS / ANALYTICS VISUAL ENHANCEMENTS: Sticky Player Column, Swipe Hint & Top-3 Podium Tints
+                if (this.state.activeView === 'analytics') {
+                    main.querySelectorAll('.overflow-x-auto').forEach(wrap => {
+                        const tbl = wrap.querySelector('table');
+                        if (!tbl) return;
+                        tbl.classList.add('sticky-col-table');
+
+                        // Add Mobile Swipe Hint above wide tables
+                        if (!wrap.previousElementSibling?.classList?.contains('mobile-swipe-hint-patch')) {
+                            const hint = document.createElement('div');
+                            hint.className = 'mobile-swipe-hint-patch sm:hidden flex items-center justify-end gap-1 text-[10px] font-bold text-slate-400 mb-1 pr-1';
+                            hint.innerHTML = '<span>← Swipe table for full ratings &amp; feedback →</span>';
+                            wrap.insertAdjacentElement('beforebegin', hint);
+                        }
+
+                        // Highlight Top 3 Podium Rows + Color-Coded Rating Pills
+                        const rows = tbl.querySelectorAll('tbody tr');
+                        rows.forEach((tr, rIdx) => {
+                            if (rIdx === 0) tr.classList.add('podium-rank-1');
+                            else if (rIdx === 1) tr.classList.add('podium-rank-2');
+                            else if (rIdx === 2) tr.classList.add('podium-rank-3');
+
+                            tr.querySelectorAll('td').forEach(td => {
+                                const txt = (td.textContent || '').trim();
+                                const mRate = txt.match(/^(\d+(?:\.\d+)?)\s*\/\s*10$/);
+                                if (mRate && !td.querySelector('.rating-pill-patch')) {
+                                    const val = parseFloat(mRate[1]);
+                                    const cls = val >= 8.5
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                        : (val >= 6.5 ? 'bg-sky-500/20 text-sky-300 border-sky-500/40' : 'bg-amber-500/15 text-amber-300 border-amber-500/35');
+                                    td.innerHTML = `<span class="rating-pill-patch px-2 py-0.5 rounded-lg border font-black score-font text-[11px] ${cls}">${mRate[1]}/10</span>`;
+                                }
+                            });
+                        });
+                    });
+                }
+
+                // Series Champions & Player of the Series Banner on Hub
+                if (this.state.activeView === 'hub' && this.state.matches?.length > 0) {
+                    const totalM = this.state.totalMatches || 1;
+                    const neededWins = Math.floor(totalM / 2) + 1;
+                    let winsA = 0, winsB = 0;
+                    this.state.matches.forEach(m => {
+                        if (m.status === 'completed') {
+                            if (m.winnerTeamKey === 'A') winsA++;
+                            else if (m.winnerTeamKey === 'B') winsB++;
+                        }
+                    });
+                    const isClinched = totalM > 1 && (winsA >= neededWins || winsB >= neededWins || this.state.matches.filter(m => m.status === 'completed').length >= totalM);
+                    if (isClinched && !document.getElementById('seriesChampionsBanner')) {
+                        const champName = winsA > winsB ? match.teamA.name : (winsB > winsA ? match.teamB.name : 'Series Drawn');
+                        const seriesPts = {};
+                        this.state.matches.forEach(m => {
+                            if (typeof this.computeMatchPlayerRatings === 'function') {
+                                this.computeMatchPlayerRatings(m).forEach(r => {
+                                    if (!seriesPts[r.name]) seriesPts[r.name] = { name: r.name, runs: 0, wkts: 0, score: 0 };
+                                    seriesPts[r.name].runs += r.runs;
+                                    seriesPts[r.name].wkts += r.wickets;
+                                    seriesPts[r.name].score += r.rating10;
+                                });
+                            }
+                        });
+                        const seriesMvp = Object.values(seriesPts).sort((a, b) => b.score - a.score)[0];
+                        const banner = document.createElement('div');
+                        banner.id = 'seriesChampionsBanner';
+                        banner.className = 'glass-card rounded-3xl p-4 sm:p-5 border-2 border-amber-400/70 bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 flex flex-wrap items-center justify-between gap-3 shadow-2xl';
+                        banner.innerHTML = `
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center text-2xl font-black shadow-lg">🏆</div>
+                                <div>
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-amber-300 block">Official Series Champions</span>
+                                    <h3 class="text-lg sm:text-xl font-black text-white">${champName} (${winsA} - ${winsB})</h3>
+                                </div>
+                            </div>
+                            ${seriesMvp ? `
+                                <div onclick="app.openPlayerProfileModal('${seriesMvp.name.replace(/'/g, "\\'")}')" class="cursor-pointer px-3.5 py-2 rounded-2xl bg-slate-950/85 border border-amber-400/50 text-xs">
+                                    <span class="text-[10px] font-black uppercase text-amber-400 block">👑 Player of the Series</span>
+                                    <span class="font-black text-white">${seriesMvp.name}</span> <span class="score-font text-emerald-400 ml-1">(${seriesMvp.runs} R • ${seriesMvp.wkts} W)</span>
+                                </div>
+                            ` : ''}
+                        `;
+                        const firstCard = main.querySelector('.space-y-6 > div');
+                        if (firstCard) firstCard.insertAdjacentElement('afterend', banner);
+                    }
+                }
+
+                if (this.state.activeView !== 'match' || !inn) return;
+
+                // Score Pop Animation on main score H1
+                const scoreH1 = main.querySelector('h1.score-font');
+                if (scoreH1) scoreH1.classList.add('score-pop-patch');
+
+                // Exact "This Over = XX R" Math Fix on DOM
+                const exactOverSum = (inn.thisOver || []).reduce((acc, c) => acc + getExactChipRuns(c), 0);
+                main.querySelectorAll('span').forEach(sp => {
+                    if (/^=\s*\d+\s*R$/.test(sp.textContent.trim())) {
+                        sp.textContent = `= ${exactOverSum} R`;
+                    }
+                });
+
+                // Deduplicate End-of-Over Commentary Dividers
+                const commDividers = main.querySelectorAll('.max-h-56 > div.bg-gradient-to-r');
+                const seenOvers = new Set();
+                commDividers.forEach(div => {
+                    const m = div.textContent.trim().match(/End of Over (\d+)/i);
+                    if (m) {
+                        if (seenOvers.has(m[1])) div.remove();
+                        else seenOvers.add(m[1]);
+                    }
+                });
+
+                // Active Batters & Current Bowler Table Upgrades
+                const tables = main.querySelectorAll('table');
+                if (tables.length >= 2) {
+                    const batTable = tables[0];
+                    const bowlTable = tables[1];
+                    [batTable, bowlTable].forEach(t => {
+                        t.querySelectorAll('th:not(:first-child), td:not(:first-child)').forEach(cell => {
+                            cell.classList.add('w-10', 'sm:w-12', 'text-right', 'score-font');
+                        });
+                    });
+
+                    // Nearing 50 / 100 Micro-Pill
+                    const batRows = batTable.querySelectorAll('tbody tr');
+                    [inn.striker, inn.nonStriker].filter(Boolean).forEach((bName, idx) => {
+                        const st = inn.batStats?.[bName];
+                        const row = batRows[idx];
+                        if (!st || !row) return;
+                        const firstTd = row.querySelector('td');
+                        if (firstTd && st.runs >= 35 && st.runs < 50 && !firstTd.innerHTML.includes('to 50')) {
+                            firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap">⭐ ${50 - st.runs} to 50</span>`;
+                        } else if (firstTd && st.runs >= 85 && st.runs < 100 && !firstTd.innerHTML.includes('to 100')) {
+                            firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap">👑 ${100 - st.runs} to 100</span>`;
+                        }
+                    });
+
+                    // Live Dual-Color Active Partnership Split Bar
+                    const batHeaderWrap = batTable.parentElement?.previousElementSibling;
+                    if (batHeaderWrap && inn.partnership && inn.partnership.balls > 0 && !document.getElementById('liveActivePartSplitBar')) {
+                        const b1N = inn.partnership.b1Name || inn.striker || 'Batter 1';
+                        const b2N = inn.partnership.b2Name || inn.nonStriker || 'Partner';
+                        const b1R = inn.partnership.b1Runs || 0;
+                        const b2R = inn.partnership.b2Runs || 0;
+                        const tot = Math.max(1, b1R + b2R + (inn.partnership.extras || 0));
+                        const p1 = Math.round((b1R / tot) * 100);
+                        const p2 = Math.max(0, 100 - p1);
+                        const splitDiv = document.createElement('div');
+                        splitDiv.id = 'liveActivePartSplitBar';
+                        splitDiv.className = 'mb-2 space-y-1';
+                        splitDiv.innerHTML = `
+                            <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                <span><strong class="text-emerald-300">${b1N}:</strong> ${b1R} (${inn.partnership.b1Balls || 0}b)</span>
+                                <span><strong class="text-sky-300">${b2N}:</strong> ${b2R} (${inn.partnership.b2Balls || 0}b)${inn.partnership.extras ? ` • Ex: ${inn.partnership.extras}` : ''}</span>
+                            </div>
+                            <div class="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
+                                <div class="h-full bg-emerald-500" style="width:${p1}%"></div>
+                                <div class="h-full bg-sky-400" style="width:${p2}%"></div>
+                            </div>
+                        `;
+                        batHeaderWrap.insertAdjacentElement('afterend', splitDiv);
+                    }
+
+                    // 1-Line "☝️ Last Wkt:" Broadcast Ticker Strip
+                    if (inn.fow && inn.fow.length > 0 && !document.getElementById('liveLastWktStrip')) {
+                        const lw = inn.fow[inn.fow.length - 1];
+                        const lwStats = inn.batStats?.[lw.batter];
+                        const lwStrip = document.createElement('div');
+                        lwStrip.id = 'liveLastWktStrip';
+                        lwStrip.className = 'mt-2 px-2.5 py-1 rounded-xl bg-rose-500/10 border border-rose-500/25 text-[11px] text-slate-300 flex items-center justify-between gap-2';
+                        lwStrip.innerHTML = `
+                            <span class="truncate"><strong class="text-rose-400">☝️ Last Wkt:</strong> <strong class="text-white">${lw.batter}</strong> ${lwStats ? `${lwStats.runs} (${lwStats.balls}b) — ${lwStats.outDesc}` : ''}</span>
+                            <span class="score-font text-rose-300 font-bold shrink-0">${lw.runs}/${lw.wicketNum} (${lw.overs} ov)</span>
+                        `;
+                        batTable.parentElement.insertAdjacentElement('afterend', lwStrip);
+                    }
+
+                    // Clickable Current Bowler Row + Dots + Spell Badge
+                    const bowlRow = bowlTable.querySelector('tbody tr');
+                    const bwObj = inn.currentBowler ? inn.bowlStats?.[inn.currentBowler] : null;
+                    if (bowlRow && bwObj) {
+                        bowlRow.classList.add('cursor-pointer', 'hover:bg-slate-800/60', 'transition-colors');
+                        bowlRow.onclick = () => app.openPlayerProfileModal(inn.currentBowler);
+                        const firstTd = bowlRow.querySelector('td');
+                        if (firstTd && !firstTd.innerHTML.includes('Dots:')) {
+                            const spellBadge = bwObj.wickets >= 2 ? ` <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black">🎯 ${bwObj.wickets}W</span>` : '';
+                            firstTd.innerHTML = `${inn.currentBowler}${spellBadge} <span class="text-[10px] text-slate-400 font-normal ml-1">(Dots: ${bwObj.dots || 0})</span>`;
+                        }
+                    }
+                }
+
+                // Restore scroll positions if we re-rendered in place on the same tab
+                if (scrollSnap) {
+                    requestAnimationFrame(() => restoreScrollPositions(scrollSnap));
+                }
+            };
+        }
+
+        app.renderAll();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachCricPulseFinalMasterPatch);
+    } else {
+        attachCricPulseFinalMasterPatch();
+    }
+})();
+</script>
     
 </body>
 </html>
