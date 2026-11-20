@@ -6578,11 +6578,11 @@
 </script>
 
 <!-- ========================================================================= -->
-<!-- CRICPULSE PRO — FINAL ALL-IN-ONE BUG FIX & BROADCAST POLISH PATCH (v2)    -->
-<!-- HOW TO USE:                                                               -->
-<!-- 1. If you pasted the previous patch at the bottom of index.html, DELETE   -->
-<!--    that old patch block first so you don't have two copies.               -->
-<!-- 2. Paste THIS entire block right BEFORE the closing </body> tag and save! -->
+<!-- CRICPULSE PRO — FINAL ALL-IN-ONE BUG FIX & BROADCAST POLISH PATCH (v3)    -->
+<!-- HOW TO USE (REPLACE PREVIOUS PATCH):                                      -->
+<!-- 1. DELETE any previous "CRICPULSE PRO — FINAL ALL-IN-ONE" patch block     -->
+<!--    from the bottom of your index.html (do NOT keep two copies).           -->
+<!-- 2. Paste THIS complete v3 block right BEFORE the closing </body> tag!     -->
 <!-- ========================================================================= -->
 <style>
     @keyframes scorePopGlowPatch {
@@ -6593,8 +6593,16 @@
         from { opacity: 0.78; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes strikeGlowPulse {
+        0%, 100% { box-shadow: inset 3px 0 0 #10b981, 0 0 0 rgba(16, 185, 129, 0); }
+        50% { box-shadow: inset 3px 0 0 #34d399, inset 18px 0 24px -18px rgba(16, 185, 129, 0.45); }
+    }
     .score-pop-patch { animation: scorePopGlowPatch 0.45s ease-out; }
     .view-fade-patch { animation: fadeSlideUpPatch 0.22s ease-out; }
+    .striker-row-highlight {
+        background: linear-gradient(90deg, rgba(16, 185, 129, 0.14), transparent 70%) !important;
+        animation: strikeGlowPulse 2.8s ease-in-out infinite;
+    }
 
     /* Sticky Frozen First Column for Mobile Wide Tables (All Player Ratings & Scorecard) */
     .sticky-col-table th:first-child,
@@ -6616,6 +6624,25 @@
     .podium-rank-2 { border-left: 3px solid #cbd5e1 !important; background: linear-gradient(90deg, rgba(203, 213, 225, 0.10), transparent 55%); }
     .podium-rank-3 { border-left: 3px solid #d97706 !important; background: linear-gradient(90deg, rgba(217, 119, 6, 0.10), transparent 55%); }
 
+    /* Broadcast Color-Coded Ball Chips */
+    .ball-chip-4 { background: rgba(16, 185, 129, 0.22) !important; color: #6ee7b7 !important; border: 1px solid rgba(52, 211, 153, 0.55) !important; box-shadow: 0 0 8px rgba(16, 185, 129, 0.25); font-weight: 900; }
+    .ball-chip-6 { background: rgba(168, 85, 247, 0.25) !important; color: #e9d5ff !important; border: 1px solid rgba(192, 132, 252, 0.65) !important; box-shadow: 0 0 10px rgba(168, 85, 247, 0.35); font-weight: 900; }
+    .ball-chip-w { background: rgba(244, 63, 94, 0.25) !important; color: #fda4af !important; border: 1px solid rgba(251, 113, 133, 0.65) !important; box-shadow: 0 0 8px rgba(244, 63, 94, 0.3); font-weight: 900; }
+    .ball-chip-ex { background: rgba(245, 158, 11, 0.20) !important; color: #fcd34d !important; border: 1px solid rgba(251, 191, 36, 0.45) !important; font-weight: 800; }
+    .ball-chip-0 { background: rgba(15, 23, 42, 0.85) !important; color: #64748b !important; border: 1px solid rgba(51, 65, 85, 0.7) !important; }
+    .ball-chip-run { background: rgba(30, 41, 59, 0.9) !important; color: #f1f5f9 !important; border: 1px solid rgba(71, 85, 105, 0.75) !important; font-weight: 700; }
+
+    /* Color-Coded Commentary Feed Accent Bars */
+    .comm-accent-4 { border-left: 3px solid #10b981 !important; background: linear-gradient(90deg, rgba(16, 185, 129, 0.10), transparent 65%) !important; }
+    .comm-accent-6 { border-left: 3px solid #a855f7 !important; background: linear-gradient(90deg, rgba(168, 85, 247, 0.14), transparent 65%) !important; }
+    .comm-accent-w { border-left: 3px solid #f43f5e !important; background: linear-gradient(90deg, rgba(244, 63, 94, 0.14), transparent 65%) !important; }
+    .comm-accent-ex { border-left: 3px solid #f59e0b !important; background: linear-gradient(90deg, rgba(245, 158, 11, 0.10), transparent 65%) !important; }
+
+    /* Native Mobile Bottom Dock Spacing */
+    @media (max-width: 639px) {
+        body { padding-bottom: 76px !important; }
+    }
+
     /* Sleek Custom Scrollbars */
     .overflow-x-auto::-webkit-scrollbar,
     .overflow-y-auto::-webkit-scrollbar { height: 5px; width: 5px; }
@@ -6625,14 +6652,14 @@
 
 <script>
 (function() {
-    function attachCricPulseFinalMasterPatchV2() {
+    function attachCricPulseFinalMasterPatchV3() {
         if (!window.app) {
-            setTimeout(attachCricPulseFinalMasterPatchV2, 120);
+            setTimeout(attachCricPulseFinalMasterPatchV3, 120);
             return;
         }
         const app = window.app;
-        if (app._finalMasterPatchV2Applied) return;
-        app._finalMasterPatchV2Applied = true;
+        if (app._finalMasterPatchV3Applied) return;
+        app._finalMasterPatchV3Applied = true;
 
         app.expandedScorecardOvers = app.expandedScorecardOvers || {};
         app._localUserView = app.state?.activeView || 'match';
@@ -6695,7 +6722,6 @@
             if (navMatch) {
                 app._localUserView = navMatch[1];
                 app._forceNextRender = true;
-                // Clear per-tab scroll memory when intentionally changing tabs
                 scrollMemory.yByIdx = {};
                 scrollMemory.xByIdx = {};
             }
@@ -6741,7 +6767,29 @@
             };
         }
 
-        // Helper: Strip "(IPL SPLIT VIEW)" cleanly from any text node inside a root
+        // Helper: Ball Chip Broadcast Color Class
+        function getBallChipClass(label) {
+            const u = String(label || '').trim().toUpperCase();
+            if (!u || u === '0' || u === '•') return 'ball-chip-0';
+            if ((u.includes('W') && !u.includes('WD')) || u === 'RO') return 'ball-chip-w';
+            if (u.includes('WD') || u.includes('NB') || u.includes('LB') || u.endsWith('B') || u.includes('P')) return 'ball-chip-ex';
+            if (u === '6' || u.includes('6')) return 'ball-chip-6';
+            if (u === '4' || u.includes('4')) return 'ball-chip-4';
+            return 'ball-chip-run';
+        }
+
+        // Helper: Auto-Generated 2-Letter Team Crest Shield
+        function buildTeamCrestHtml(teamName, teamColor, sizeCls = 'w-6 h-6 text-[10px]') {
+            const clean = String(teamName || 'TM').replace(/[^A-Za-z0-9 ]/g, '').trim();
+            const parts = clean.split(/\s+/).filter(Boolean);
+            const initials = parts.length >= 2
+                ? (parts[0][0] + parts[1][0]).toUpperCase()
+                : clean.slice(0, 2).toUpperCase() || 'TM';
+            const col = teamColor || '#10b981';
+            return `<span class="team-crest-badge-patch inline-flex items-center justify-center rounded-full font-black text-white shrink-0 shadow-md ${sizeCls}" style="background: linear-gradient(135deg, ${col}, #0f172a); border: 1.5px solid rgba(255,255,255,0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.65);">${initials}</span>`;
+        }
+
+        // Helper: Strip "(IPL SPLIT VIEW)" cleanly from any text node
         function stripIplSplitViewWording(root) {
             if (!root) return;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -6785,12 +6833,47 @@
             ].join('|');
         }
 
-        // Floating Back-to-Top Button for long mobile pages
+        // Native Mobile Frosted-Glass Bottom Navigation Dock
+        function ensureMobileBottomDock(activeView, hasMatch) {
+            let dock = document.getElementById('cricpulseMobileBottomDock');
+            if (!hasMatch) {
+                if (dock) dock.classList.add('hidden');
+                return;
+            }
+            if (!dock) {
+                dock = document.createElement('nav');
+                dock.id = 'cricpulseMobileBottomDock';
+                dock.className = 'sm:hidden fixed bottom-0 inset-x-0 z-40 px-2 pb-2 pt-1.5 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800/90 shadow-[0_-8px_24px_rgba(0,0,0,0.65)]';
+                document.body.appendChild(dock);
+            }
+            dock.classList.remove('hidden');
+            const tabs = [
+                { id: 'match', icon: 'fa-satellite-dish', label: 'Live' },
+                { id: 'scorecard', icon: 'fa-table-list', label: 'Card' },
+                { id: 'analytics', icon: 'fa-chart-line', label: 'Stats' },
+                { id: 'hub', icon: 'fa-trophy', label: 'Hub' }
+            ];
+            dock.innerHTML = `
+                <div class="grid grid-cols-4 gap-1 max-w-md mx-auto">
+                    ${tabs.map(t => {
+                        const active = activeView === t.id;
+                        return `
+                            <button onclick="app.navigate('${t.id}')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35 shadow-inner' : 'text-slate-400 hover:text-slate-200'}">
+                                <i class="fa-solid ${t.icon} text-sm mb-0.5 ${active ? 'scale-110' : ''}"></i>
+                                <span class="text-[10px] font-black tracking-wide">${t.label}</span>
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        // Floating Back-to-Top Button (positioned cleanly above Mobile Bottom Dock)
         if (!document.getElementById('cricpulseBackToTopBtn')) {
             const topBtn = document.createElement('button');
             topBtn.id = 'cricpulseBackToTopBtn';
             topBtn.title = 'Back to Top';
-            topBtn.className = 'hidden fixed bottom-5 right-4 z-40 w-10 h-10 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center transition-all backdrop-blur';
+            topBtn.className = 'hidden fixed bottom-20 sm:bottom-5 right-4 z-40 w-10 h-10 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center transition-all backdrop-blur';
             topBtn.innerHTML = '<i class="fa-solid fa-arrow-up text-sm"></i>';
             topBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
             document.body.appendChild(topBtn);
@@ -7056,7 +7139,7 @@
         }
 
         // ---------------------------------------------------------------------
-        // 7. FIX: FULL SCORECARD — ZERO OVER DUPLICATION + SCROLL PRESERVATION
+        // 7. FULL SCORECARD: COLOR-CODED BALL CHIPS, CRESTS, ZERO DUPLICATION
         // ---------------------------------------------------------------------
         app.toggleScorecardOverExpand = function(innNum, overNum) {
             const scrollEl = document.getElementById(`overBreakdownScroll-${innNum}`);
@@ -7084,6 +7167,14 @@
                     const card = cards[iIdx];
                     if (!card) return;
 
+                    // Team Crest Shield next to Innings Title
+                    const h3 = card.querySelector('h3');
+                    if (h3 && !h3.querySelector('.team-crest-badge-patch')) {
+                        const tColor = inn.battingTeamKey === 'A' ? (match.teamA.color || '#10b981') : (match.teamB.color || '#38bdf8');
+                        h3.classList.add('flex', 'items-center', 'gap-2');
+                        h3.insertAdjacentHTML('afterbegin', buildTeamCrestHtml(inn.battingTeamName, tColor, 'w-7 h-7 text-[11px]'));
+                    }
+
                     // Clickable Bowler Profile Rows + Spell Badges
                     const tables = card.querySelectorAll('table');
                     if (tables.length >= 2) {
@@ -7101,7 +7192,7 @@
                         });
                     }
 
-                    // FIX DUPLICATION: Find the true outer Over-by-Over section block directly under the card
+                    // Over-by-Over Breakdown (Zero Duplication + Broadcast Color-Coded Ball Chips)
                     const headings = Array.from(card.querySelectorAll('h4'));
                     const ovHeading = headings.find(h => /Over-by-Over Breakdown/i.test(h.textContent || ''));
                     if (ovHeading && inn.oversHistory && inn.oversHistory.length > 0) {
@@ -7109,7 +7200,6 @@
                         while (outerSection.parentElement && outerSection.parentElement !== card) {
                             outerSection = outerSection.parentElement;
                         }
-                        // Ensure we are replacing the section block, not the whole card
                         const targetContainer = (outerSection !== card) ? outerSection : ovHeading.parentElement;
                         targetContainer.className = 'space-y-2 pt-3 border-t border-slate-800/80';
                         targetContainer.innerHTML = `
@@ -7136,8 +7226,8 @@
                                                     <span class="text-slate-400 ml-1">(${o.bowler} • <strong class="text-emerald-300">${o.overRuns ?? 0} R</strong>)</span>
                                                     ${badgeHtml}
                                                 </div>
-                                                <div class="flex items-center gap-1">
-                                                    ${(o.balls || []).map(b => `<span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px] text-slate-200">${b.label}</span>`).join('')}
+                                                <div class="flex items-center flex-wrap gap-1">
+                                                    ${(o.balls || []).map(b => `<span class="px-2 py-0.5 rounded-md font-mono text-[11px] ${getBallChipClass(b.label)}">${b.label}</span>`).join('')}
                                                     <i class="fa-solid fa-chevron-${isExp ? 'up' : 'down'} text-[10px] text-slate-400 ml-1"></i>
                                                 </div>
                                             </div>
@@ -7159,7 +7249,7 @@
         }
 
         // ---------------------------------------------------------------------
-        // 8. LIVE CONSOLE, STATS & HUB POLISH + SMART DIFF-SKIP
+        // 8. LIVE CONSOLE, STATS & HUB — ALL 10 VISUAL ENHANCEMENTS + DIFF-SKIP
         // ---------------------------------------------------------------------
         if (typeof app.renderAll === 'function') {
             const origRenderAllPatch = app.renderAll.bind(app);
@@ -7180,6 +7270,7 @@
                 if (!this._forceNextRender && fp === this._lastRenderedFingerprint && (this.isSpectator || isPassiveTab)) {
                     const hb = document.getElementById('spectatorLiveHeartbeat');
                     if (hb) hb.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block"></span> LIVE • Synced';
+                    ensureMobileBottomDock(this.state?.activeView, !!this.getActiveMatch());
                     return;
                 }
 
@@ -7194,9 +7285,9 @@
                 const match = this.getActiveMatch();
                 const inn = this.getActiveInnings();
                 const main = document.getElementById('mainViewContainer');
+                ensureMobileBottomDock(currentView, !!match);
                 if (!main || !match) return;
 
-                // Strip "(IPL SPLIT VIEW)" everywhere cleanly
                 stripIplSplitViewWording(main);
 
                 if (prevView !== currentView) {
@@ -7252,16 +7343,180 @@
                     });
                 }
 
-                // LIVE CONSOLE POLISH
+                // LIVE CONSOLE VISUAL ENHANCEMENTS
                 if (this.state.activeView === 'match' && inn) {
+                    const batColor = inn.battingTeamKey === 'A' ? (match.teamA.color || '#10b981') : (match.teamB.color || '#38bdf8');
                     const scoreH1 = main.querySelector('h1.score-font');
-                    if (scoreH1) scoreH1.classList.add('score-pop-patch');
 
+                    if (scoreH1) {
+                        scoreH1.classList.add('score-pop-patch');
+
+                        // 1) Auto-Generated Team Crest Badge inside Scoreboard Pill
+                        const scorePill = scoreH1.parentElement;
+                        if (scorePill && !scorePill.querySelector('.team-crest-badge-patch')) {
+                            scorePill.insertAdjacentHTML('afterbegin', buildTeamCrestHtml(inn.battingTeamName, batColor, 'w-7 h-7 text-[11px] self-center'));
+                        }
+
+                        // 2) Animated Broadcast Status Pill (LIVE / INNINGS BREAK / FULL TIME)
+                        const headerCard = scoreH1.closest('.glass-card');
+                        if (headerCard && !document.getElementById('broadcastMatchStatusPill')) {
+                            const maxBalls = (match.totalOvers || 6) * 6;
+                            const isCompleted = match.status === 'completed';
+                            const isInningsBreak = !isCompleted && inn.inningsNumber === 1 && (inn.legalBalls >= maxBalls || inn.wickets >= (match.rules?.lastManStanding ? inn.battingRoster.length : Math.max(1, inn.battingRoster.length - 1)));
+                            const statusHtml = isCompleted
+                                ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-black tracking-wider">🏆 FULL TIME</span>`
+                                : (isInningsBreak
+                                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-black tracking-wider">⏸ INNINGS BREAK</span>`
+                                    : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/45 text-rose-300 text-[10px] font-black tracking-wider"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span> LIVE • INN ${inn.inningsNumber}</span>`);
+                            const badgeWrap = document.createElement('div');
+                            badgeWrap.id = 'broadcastMatchStatusPill';
+                            badgeWrap.className = 'mb-2 flex items-center justify-between gap-2';
+                            badgeWrap.innerHTML = `${statusHtml}<span class="text-[10px] text-slate-400 font-semibold truncate">${match.venue || ''}</span>`;
+                            headerCard.prepend(badgeWrap);
+                        }
+
+                        // 3) 2nd Innings Target Chase Progress Bar
+                        if (headerCard && inn.inningsNumber === 2 && match.innings?.[0] && !document.getElementById('liveTargetChaseProgressBar')) {
+                            const target = (match.innings[0].runs || 0) + 1;
+                            const scored = inn.runs || 0;
+                            const pct = Math.min(100, Math.round((scored / Math.max(1, target)) * 100));
+                            const runsNeeded = Math.max(0, target - scored);
+                            const ballsLeft = Math.max(0, ((match.totalOvers || 6) * 6) - (inn.legalBalls || 0));
+                            const rrr = ballsLeft > 0 ? (runsNeeded / (ballsLeft / 6)) : 99;
+                            const barColor = runsNeeded === 0
+                                ? 'from-emerald-400 to-teal-300'
+                                : (rrr <= 8 ? 'from-emerald-500 to-emerald-300' : (rrr <= 12 ? 'from-amber-500 to-yellow-300' : 'from-rose-600 to-rose-400'));
+
+                            const chaseDiv = document.createElement('div');
+                            chaseDiv.id = 'liveTargetChaseProgressBar';
+                            chaseDiv.className = 'mt-2.5 pt-2 border-t border-white/10 space-y-1';
+                            chaseDiv.innerHTML = `
+                                <div class="flex items-center justify-between text-[10px] font-bold">
+                                    <span class="text-slate-300">${runsNeeded === 0 ? '🏆 TARGET ACHIEVED!' : `🎯 Target ${target} • Need <strong class="text-white">${runsNeeded}</strong> off <strong class="text-white">${ballsLeft}b</strong>`}</span>
+                                    <span class="score-font text-emerald-300">${pct}%</span>
+                                </div>
+                                <div class="w-full h-2 rounded-full bg-slate-950/80 border border-white/10 overflow-hidden">
+                                    <div class="h-full rounded-full bg-gradient-to-r ${barColor} transition-all duration-500" style="width:${pct}%"></div>
+                                </div>
+                            `;
+                            headerCard.appendChild(chaseDiv);
+                        }
+                    }
+
+                    // 4) Exact This Over Sum + Color-Coded Broadcast Ball Chips on Live Console
                     const exactOverSum = (inn.thisOver || []).reduce((acc, c) => acc + getExactChipRuns(c), 0);
                     main.querySelectorAll('span').forEach(sp => {
-                        if (/^=\s*\d+\s*R$/.test(sp.textContent.trim())) {
+                        const txt = sp.textContent.trim();
+                        if (/^=\s*\d+\s*R$/.test(txt)) {
                             sp.textContent = `= ${exactOverSum} R`;
+                            // Color-code sibling ball chips in the same This Over strip
+                            const parentStrip = sp.parentElement;
+                            if (parentStrip) {
+                                parentStrip.querySelectorAll('span').forEach(chip => {
+                                    if (chip === sp) return;
+                                    const cTxt = chip.textContent.trim();
+                                    if (cTxt.length <= 6 && !/over|free|hit|=/i.test(cTxt)) {
+                                        chip.classList.add(...getBallChipClass(cTxt).split(' '));
+                                    }
+                                });
+                            }
                         }
+                    });
+
+                    // 5) Active Batters & Bowler Table Polish (Striker Glow, Milestones, Partnership Split Bar, Last Wkt)
+                    const tables = main.querySelectorAll('table');
+                    if (tables.length >= 2) {
+                        const batTable = tables[0];
+                        const bowlTable = tables[1];
+
+                        [batTable, bowlTable].forEach(t => {
+                            t.querySelectorAll('th:not(:first-child), td:not(:first-child)').forEach(cell => {
+                                cell.classList.add('w-10', 'sm:w-12', 'text-right', 'score-font');
+                            });
+                        });
+
+                        // Striker Row Glow + Milestone Pills (⭐ X to 50 / 👑 X to 100)
+                        const batRows = batTable.querySelectorAll('tbody tr');
+                        [inn.striker, inn.nonStriker].filter(Boolean).forEach((bName, idx) => {
+                            const st = inn.batStats?.[bName];
+                            const row = batRows[idx];
+                            if (!st || !row) return;
+                            const firstTd = row.querySelector('td');
+                            if (bName === inn.striker) {
+                                row.classList.add('striker-row-highlight');
+                                if (firstTd && !firstTd.querySelector('.strike-pill-patch')) {
+                                    firstTd.innerHTML += ` <span class="strike-pill-patch px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-black ml-1">🏏 STRIKE</span>`;
+                                }
+                            }
+                            if (firstTd && st.runs >= 35 && st.runs < 50 && !firstTd.innerHTML.includes('to 50')) {
+                                firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap ml-1">⭐ ${50 - st.runs} to 50</span>`;
+                            } else if (firstTd && st.runs >= 85 && st.runs < 100 && !firstTd.innerHTML.includes('to 100')) {
+                                firstTd.innerHTML += ` <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-black whitespace-nowrap ml-1">👑 ${100 - st.runs} to 100</span>`;
+                            }
+                        });
+
+                        // Live Dual-Color Active Partnership Split Bar
+                        const batHeaderWrap = batTable.parentElement?.previousElementSibling;
+                        if (batHeaderWrap && inn.partnership && inn.partnership.balls > 0 && !document.getElementById('liveActivePartSplitBar')) {
+                            const b1N = inn.partnership.b1Name || inn.striker || 'Batter 1';
+                            const b2N = inn.partnership.b2Name || inn.nonStriker || 'Partner';
+                            const b1R = inn.partnership.b1Runs || 0;
+                            const b2R = inn.partnership.b2Runs || 0;
+                            const tot = Math.max(1, b1R + b2R + (inn.partnership.extras || 0));
+                            const p1 = Math.round((b1R / tot) * 100);
+                            const p2 = Math.max(0, 100 - p1);
+                            const splitDiv = document.createElement('div');
+                            splitDiv.id = 'liveActivePartSplitBar';
+                            splitDiv.className = 'mb-2 space-y-1';
+                            splitDiv.innerHTML = `
+                                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                                    <span><strong class="text-emerald-300">${b1N}:</strong> ${b1R} (${inn.partnership.b1Balls || 0}b)</span>
+                                    <span><strong class="text-sky-300">${b2N}:</strong> ${b2R} (${inn.partnership.b2Balls || 0}b)${inn.partnership.extras ? ` • Ex: ${inn.partnership.extras}` : ''}</span>
+                                </div>
+                                <div class="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden flex">
+                                    <div class="h-full bg-emerald-500" style="width:${p1}%"></div>
+                                    <div class="h-full bg-sky-400" style="width:${p2}%"></div>
+                                </div>
+                            `;
+                            batHeaderWrap.insertAdjacentElement('afterend', splitDiv);
+                        }
+
+                        // 1-Line "☝️ Last Wkt:" Broadcast Ticker Strip
+                        if (inn.fow && inn.fow.length > 0 && !document.getElementById('liveLastWktStrip')) {
+                            const lw = inn.fow[inn.fow.length - 1];
+                            const lwStats = inn.batStats?.[lw.batter];
+                            const lwStrip = document.createElement('div');
+                            lwStrip.id = 'liveLastWktStrip';
+                            lwStrip.className = 'mt-2 px-2.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-[11px] text-slate-300 flex items-center justify-between gap-2';
+                            lwStrip.innerHTML = `
+                                <span class="truncate"><strong class="text-rose-400">☝️ Last Wkt:</strong> <strong class="text-white">${lw.batter}</strong> ${lwStats ? `${lwStats.runs} (${lwStats.balls}b) — ${lwStats.outDesc}` : ''}</span>
+                                <span class="score-font text-rose-300 font-bold shrink-0">${lw.runs}/${lw.wicketNum} (${lw.overs} ov)</span>
+                            `;
+                            batTable.parentElement.insertAdjacentElement('afterend', lwStrip);
+                        }
+
+                        // Clickable Current Bowler row + Dots & Spell Badge
+                        const bowlRow = bowlTable.querySelector('tbody tr');
+                        const bwObj = inn.currentBowler ? inn.bowlStats?.[inn.currentBowler] : null;
+                        if (bowlRow && bwObj) {
+                            bowlRow.classList.add('cursor-pointer', 'hover:bg-slate-800/60', 'transition-colors');
+                            bowlRow.onclick = () => app.openPlayerProfileModal(inn.currentBowler);
+                            const firstTd = bowlRow.querySelector('td');
+                            if (firstTd && !firstTd.innerHTML.includes('Dots:')) {
+                                const spellBadge = bwObj.wickets >= 2 ? ` <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-black">🎯 ${bwObj.wickets}W</span>` : '';
+                                firstTd.innerHTML = `${inn.currentBowler}${spellBadge} <span class="text-[10px] text-slate-400 font-normal ml-1">(Dots: ${bwObj.dots || 0})</span>`;
+                            }
+                        }
+                    }
+
+                    // 6) Color-Coded Commentary Feed Accent Bars
+                    main.querySelectorAll('.max-h-56 > div').forEach(entry => {
+                        if (entry.classList.contains('bg-gradient-to-r')) return; // Skip End-of-Over divider
+                        const txt = (entry.textContent || '').toUpperCase();
+                        if (txt.includes('WICKET') || txt.includes('OUT!')) entry.classList.add('comm-accent-w');
+                        else if (txt.includes('SIX') || txt.includes('MAXIMUM')) entry.classList.add('comm-accent-6');
+                        else if (txt.includes('FOUR')) entry.classList.add('comm-accent-4');
+                        else if (txt.includes('WIDE') || txt.includes('NO-BALL') || txt.includes('BYE')) entry.classList.add('comm-accent-ex');
                     });
                 }
 
@@ -7272,14 +7527,14 @@
             };
         }
 
-        // Trigger one clean render so all fixes take effect immediately
+        // Trigger one clean render so all fixes & visual upgrades take effect immediately
         app._forceNextRender = true;
         app.renderAll();
     }
 
-    // Wait 350ms after load so we ALWAYS attach AFTER Part 1/2/3/4 scripts!
+    // Wait 350ms after load so we ALWAYS attach AFTER earlier scripts!
     function schedulePatchAttach() {
-        setTimeout(attachCricPulseFinalMasterPatchV2, 350);
+        setTimeout(attachCricPulseFinalMasterPatchV3, 350);
     }
 
     if (document.readyState === 'loading') {
