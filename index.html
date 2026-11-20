@@ -6638,11 +6638,6 @@
     .comm-accent-w { border-left: 3px solid #f43f5e !important; background: linear-gradient(90deg, rgba(244, 63, 94, 0.14), transparent 65%) !important; }
     .comm-accent-ex { border-left: 3px solid #f59e0b !important; background: linear-gradient(90deg, rgba(245, 158, 11, 0.10), transparent 65%) !important; }
 
-    /* Native Mobile Bottom Dock Spacing */
-    @media (max-width: 639px) {
-        body { padding-bottom: 76px !important; }
-    }
-
     /* Sleek Custom Scrollbars */
     .overflow-x-auto::-webkit-scrollbar,
     .overflow-y-auto::-webkit-scrollbar { height: 5px; width: 5px; }
@@ -6833,47 +6828,12 @@
             ].join('|');
         }
 
-        // Native Mobile Frosted-Glass Bottom Navigation Dock
-        function ensureMobileBottomDock(activeView, hasMatch) {
-            let dock = document.getElementById('cricpulseMobileBottomDock');
-            if (!hasMatch) {
-                if (dock) dock.classList.add('hidden');
-                return;
-            }
-            if (!dock) {
-                dock = document.createElement('nav');
-                dock.id = 'cricpulseMobileBottomDock';
-                dock.className = 'sm:hidden fixed bottom-0 inset-x-0 z-40 px-2 pb-2 pt-1.5 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800/90 shadow-[0_-8px_24px_rgba(0,0,0,0.65)]';
-                document.body.appendChild(dock);
-            }
-            dock.classList.remove('hidden');
-            const tabs = [
-                { id: 'match', icon: 'fa-satellite-dish', label: 'Live' },
-                { id: 'scorecard', icon: 'fa-table-list', label: 'Card' },
-                { id: 'analytics', icon: 'fa-chart-line', label: 'Stats' },
-                { id: 'hub', icon: 'fa-trophy', label: 'Hub' }
-            ];
-            dock.innerHTML = `
-                <div class="grid grid-cols-4 gap-1 max-w-md mx-auto">
-                    ${tabs.map(t => {
-                        const active = activeView === t.id;
-                        return `
-                            <button onclick="app.navigate('${t.id}')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all ${active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/35 shadow-inner' : 'text-slate-400 hover:text-slate-200'}">
-                                <i class="fa-solid ${t.icon} text-sm mb-0.5 ${active ? 'scale-110' : ''}"></i>
-                                <span class="text-[10px] font-black tracking-wide">${t.label}</span>
-                            </button>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-        }
-
-        // Floating Back-to-Top Button (positioned cleanly above Mobile Bottom Dock)
+        // Floating Back-to-Top Button
         if (!document.getElementById('cricpulseBackToTopBtn')) {
             const topBtn = document.createElement('button');
             topBtn.id = 'cricpulseBackToTopBtn';
             topBtn.title = 'Back to Top';
-            topBtn.className = 'hidden fixed bottom-20 sm:bottom-5 right-4 z-40 w-10 h-10 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center transition-all backdrop-blur';
+            topBtn.className = 'hidden fixed bottom-5 right-4 z-40 w-10 h-10 rounded-full bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-950/60 border border-emerald-400/40 flex items-center justify-center transition-all backdrop-blur';
             topBtn.innerHTML = '<i class="fa-solid fa-arrow-up text-sm"></i>';
             topBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
             document.body.appendChild(topBtn);
@@ -7270,7 +7230,6 @@
                 if (!this._forceNextRender && fp === this._lastRenderedFingerprint && (this.isSpectator || isPassiveTab)) {
                     const hb = document.getElementById('spectatorLiveHeartbeat');
                     if (hb) hb.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block"></span> LIVE • Synced';
-                    ensureMobileBottomDock(this.state?.activeView, !!this.getActiveMatch());
                     return;
                 }
 
@@ -7285,7 +7244,6 @@
                 const match = this.getActiveMatch();
                 const inn = this.getActiveInnings();
                 const main = document.getElementById('mainViewContainer');
-                ensureMobileBottomDock(currentView, !!match);
                 if (!main || !match) return;
 
                 stripIplSplitViewWording(main);
